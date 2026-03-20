@@ -1,0 +1,11 @@
+[
+  {"layerNum": 0, "name": "Backend API", "domain": "Backend", "trialRange": [1, 10], "status": "complete", "failureModesResolved": 34, "description": "v1.0-v11.0, 34 failure modes, converged"},
+  {"layerNum": 1, "name": "Integration Testing", "domain": "Testing", "trialRange": [11, 14], "status": "active", "failureModesResolved": 0, "description": "Extend v11.0 with required E2E + real DB + real Redis"},
+  {"layerNum": 2, "name": "Frontend", "domain": "UI", "trialRange": [15, 22], "status": "pending", "failureModesResolved": 0, "description": "Next.js 15 + shadcn/ui, component testing, accessibility"},
+  {"layerNum": 3, "name": "Specifications", "domain": "Specs", "trialRange": [23, 27], "status": "pending", "failureModesResolved": 0, "description": "Spec-to-code traceability, VERIFY tags, bidirectional audit"},
+  {"layerNum": 4, "name": "Infrastructure", "domain": "Infra", "trialRange": [28, 32], "status": "pending", "failureModesResolved": 0, "description": "Docker, CI/CD, migrations, seed scripts, env verification"},
+  {"layerNum": 5, "name": "Monorepo", "domain": "Monorepo", "trialRange": [33, 36], "status": "pending", "failureModesResolved": 0, "description": "Turborepo + pnpm, shared types, cross-package coordination"},
+  {"layerNum": 6, "name": "Security (Broad)", "domain": "Security", "trialRange": [37, 41], "status": "pending", "failureModesResolved": 0, "description": "OWASP Top 10, rate limiting, CORS/CSP, dependency audit"},
+  {"layerNum": 7, "name": "Performance", "domain": "Performance", "trialRange": [42, 45], "status": "pending", "failureModesResolved": 0, "description": "Benchmarking, load testing, N+1 detection"},
+  {"layerNum": 8, "name": "Monitoring", "domain": "Monitoring", "trialRange": [46, 49], "status": "pending", "failureModesResolved": 0, "description": "Structured logging, health checks, error tracking, APM"}
+]
