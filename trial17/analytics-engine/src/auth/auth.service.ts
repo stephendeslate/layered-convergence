@@ -17,7 +17,7 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
-    // FM #52: Validate tenant exists before creating user
+    // Validate tenant exists before creating user
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: dto.tenantId },
     });
@@ -104,7 +104,7 @@ export class AuthService {
 
   async validateToken(token: string): Promise<JwtPayload> {
     try {
-      // FM #44: JWT is verified with proper crypto via JwtService (HMAC-SHA256), NOT raw base64 decode
+      // JWT is verified with proper crypto via JwtService (HMAC-SHA256), NOT raw base64 decode
       const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
       return payload;
     } catch {

@@ -39,7 +39,7 @@ export class CompanyContextMiddleware implements NestMiddleware {
     const token = authHeader.substring(7);
 
     try {
-      // FM #44: Proper JWT verification — NOT raw base64 decode
+      // Proper JWT verification — NOT raw base64 decode
       const payload = jwt.verify(token, this.jwtSecret) as JwtPayload;
       req.companyId = payload.companyId;
       req.userId = payload.sub;

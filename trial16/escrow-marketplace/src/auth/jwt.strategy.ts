@@ -5,7 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { CurrentUserPayload } from '../common/decorators/current-user.decorator';
 
 /**
- * FM #44: JWT always verified with proper crypto.
+ * JWT always verified with proper crypto.
  * The secret is injected from ConfigService — never hardcoded.
  * passport-jwt handles full cryptographic verification (signature, expiry).
  */

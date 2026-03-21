@@ -8,7 +8,7 @@ import { AuthGuard } from './auth.guard';
   imports: [
     JwtModule.register({
       global: true,
-      // FM #49: JWT_SECRET from env with NO fallback default — app fails to start without it
+      // JWT_SECRET from env with NO fallback default — app fails to start without it
       secret: (() => {
         const secret = process.env.JWT_SECRET;
         if (!secret) {

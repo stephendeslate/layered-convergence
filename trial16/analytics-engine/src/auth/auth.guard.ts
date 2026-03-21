@@ -21,7 +21,7 @@ export class AuthGuard implements CanActivate {
     }
 
     try {
-      // FM #44: Proper cryptographic verification via JwtService, NOT raw base64 decode
+      // Proper cryptographic verification via JwtService, NOT raw base64 decode
       const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
       (request as Request & { user: JwtPayload }).user = payload;
     } catch {

@@ -152,7 +152,7 @@ describe('AuthService', () => {
       });
     });
 
-    // FM #52: Registration validates tenant exists
+    // Registration validates tenant exists
     it('should throw BadRequestException if tenant does not exist', async () => {
       prisma.tenant.findUnique.mockResolvedValue(null);
 

@@ -9,7 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload } from '../auth/auth.dto';
 
 /**
- * FM #43: Tenant context middleware derives tenant identity SOLELY from JWT.
+ * Tenant context middleware derives tenant identity SOLELY from JWT.
  * NO x-tenant-id header override is accepted — that would be a security vulnerability.
  */
 @Injectable()
@@ -35,10 +35,10 @@ export class TenantContextMiddleware implements NestMiddleware {
     }
 
     try {
-      // FM #44: Proper cryptographic verification via JwtService
+      // Proper cryptographic verification via JwtService
       const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
 
-      // FM #43: Tenant ID comes ONLY from the JWT — never from headers
+      // Tenant ID comes ONLY from the JWT — never from headers
       req.tenantId = payload.tenantId;
       req.user = payload;
 

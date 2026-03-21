@@ -96,7 +96,7 @@ export class AuthService {
 
   async validateToken(token: string): Promise<JwtPayload> {
     try {
-      // FM #44: JWT is verified with proper crypto via JwtService (HMAC-SHA256), NOT raw base64 decode
+      // JWT is verified with proper crypto via JwtService (HMAC-SHA256), NOT raw base64 decode
       const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
       return payload;
     } catch {
