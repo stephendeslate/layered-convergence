@@ -1,0 +1,51 @@
+-- Enable Row Level Security on all company-scoped tables
+-- Run after Prisma migrations
+
+ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE companies FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE technicians ENABLE ROW LEVEL SECURITY;
+ALTER TABLE technicians FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE work_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE work_orders FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE routes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE routes FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE gps_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gps_events FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE invoices FORCE ROW LEVEL SECURITY;
+
+-- Create RLS policies
+CREATE POLICY company_isolation ON companies
+  USING ("id" = current_setting('app.company_id', true));
+
+CREATE POLICY user_company_isolation ON users
+  USING ("companyId" = current_setting('app.company_id', true));
+
+CREATE POLICY customer_company_isolation ON customers
+  USING ("companyId" = current_setting('app.company_id', true));
+
+CREATE POLICY technician_company_isolation ON technicians
+  USING ("companyId" = current_setting('app.company_id', true));
+
+CREATE POLICY work_order_company_isolation ON work_orders
+  USING ("companyId" = current_setting('app.company_id', true));
+
+CREATE POLICY route_company_isolation ON routes
+  USING ("companyId" = current_setting('app.company_id', true));
+
+CREATE POLICY gps_event_company_isolation ON gps_events
+  USING ("companyId" = current_setting('app.company_id', true));
+
+CREATE POLICY invoice_company_isolation ON invoices
+  USING ("companyId" = current_setting('app.company_id', true));
