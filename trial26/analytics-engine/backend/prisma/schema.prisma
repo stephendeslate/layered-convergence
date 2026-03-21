@@ -1,0 +1,194 @@
+// [TRACED:AE-006] Embeddable dashboard views with time-limited tokens
+// [TRACED:DA-001] Analytics Engine Prisma schema with all 9 entities
+// [TRACED:AE-020] All models use @@map for table names and @map for multi-word columns
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// [TRACED:DA-002] Tenant entity
+// [TRACED:AE-014] Tenant entity as root of multi-tenant hierarchy
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users       User[]
+  dataSources DataSource[]
+  pipelines   Pipeline[]
+  dashboards  Dashboard[]
+  embeds      Embed[]
+
+  @@map("tenants")
+}
+
+// [TRACED:DA-003] Role enum
+enum Role {
+  ADMIN
+  VIEWER
+  EDITOR
+  ANALYST
+
+  @@map("roles")
+}
+
+// [TRACED:DA-004] User entity
+// [TRACED:AE-015] Users belong to a single tenant with role-based access
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String   @map("password_hash")
+  role         Role     @default(VIEWER)
+  tenantId     String   @map("tenant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  dashboards Dashboard[]
+
+  @@map("users")
+}
+
+// [TRACED:DA-005] DataSource entity
+// [TRACED:AE-016] DataSource stores connection info for external databases
+model DataSource {
+  id           String   @id @default(uuid())
+  name         String
+  type         String
+  connectionUri String  @map("connection_uri")
+  tenantId     String   @map("tenant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  dataPoints DataPoint[]
+  syncRuns   SyncRun[]
+
+  @@map("data_sources")
+}
+
+// [TRACED:DA-006] DataPoint entity with Decimal for metric values
+// [TRACED:AE-017] DataPoint uses Decimal(20,6) for metric values
+model DataPoint {
+  id           String   @id @default(uuid())
+  dataSourceId String   @map("data_source_id")
+  key          String
+  value        Decimal  @db.Decimal(20, 6)
+  timestamp    DateTime
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@map("data_points")
+}
+
+// [TRACED:DA-007] Pipeline state machine enum
+enum PipelineStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+
+  @@map("pipeline_statuses")
+}
+
+// [TRACED:DA-008] Pipeline entity
+// [TRACED:AE-018] Pipeline state machine: DRAFT -> ACTIVE -> PAUSED -> ARCHIVED
+model Pipeline {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  status      PipelineStatus @default(DRAFT)
+  config      Json
+  tenantId    String         @map("tenant_id")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("pipelines")
+}
+
+// [TRACED:DA-009] Dashboard entity
+model Dashboard {
+  id        String   @id @default(uuid())
+  name      String
+  tenantId  String   @map("tenant_id")
+  createdBy String   @map("created_by")
+  isPublic  Boolean  @default(false) @map("is_public")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  creator User     @relation(fields: [createdBy], references: [id])
+  widgets Widget[]
+  embeds  Embed[]
+
+  @@map("dashboards")
+}
+
+// [TRACED:DA-010] Widget entity
+model Widget {
+  id          String   @id @default(uuid())
+  dashboardId String   @map("dashboard_id")
+  type        String
+  title       String
+  config      Json
+  position    Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+
+  @@map("widgets")
+}
+
+// [TRACED:DA-011] Embed entity
+// [TRACED:AE-019] Embed tokens with expiration dates scoped to dashboards
+model Embed {
+  id          String   @id @default(uuid())
+  dashboardId String   @map("dashboard_id")
+  tenantId    String   @map("tenant_id")
+  token       String   @unique
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@map("embeds")
+}
+
+// [TRACED:DA-012] SyncRun state machine enum
+enum SyncRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+
+  @@map("sync_run_statuses")
+}
+
+// [TRACED:DA-013] SyncRun entity
+model SyncRun {
+  id           String        @id @default(uuid())
+  dataSourceId String        @map("data_source_id")
+  status       SyncRunStatus @default(PENDING)
+  startedAt    DateTime?     @map("started_at")
+  completedAt  DateTime?     @map("completed_at")
+  errorMessage String?       @map("error_message")
+  recordCount  Int?          @map("record_count")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@map("sync_runs")
+}
