@@ -1,6 +1,6 @@
 # Layered Convergence — SDD Trials 11-49
 
-Extends the [SDD Methodology](../trials/) from backend-only depth (v11.0, 34 failure modes, converged) to full-stack breadth. Each layer adds one domain, runs trials until convergence, then the next layer begins. All layers inherit previous conventions and failure modes.
+Extends the [SDD Methodology](https://github.com/stephendeslate/sdd-trials) from backend-only depth (v11.0, 34 failure modes, converged) to full-stack breadth. Each layer adds one domain, runs trials until convergence, then the next layer begins. All layers inherit previous conventions and failure modes.
 
 ## Corrective Notice
 
@@ -121,7 +121,7 @@ layered-convergence/
 
 ## Predecessor
 
-Built on 10 trials of SDD documented in [`~/projects/trials/`](../trials/). See the [SDD Methodology Analysis Report](../trials/SDD_METHODOLOGY_ANALYSIS_REPORT.md) for the complete cross-trial analysis and the layered convergence design.
+Built on 10 trials of SDD documented in [sdd-trials](https://github.com/stephendeslate/sdd-trials). See the [SDD Methodology Analysis Report](https://github.com/stephendeslate/sdd-trials/blob/main/SDD_METHODOLOGY_ANALYSIS_REPORT.md) for the complete cross-trial analysis and the layered convergence design.
 
 ## License
 
