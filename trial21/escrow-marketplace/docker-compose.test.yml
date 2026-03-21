@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  postgres-test:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: escrow_test
+      POSTGRES_PASSWORD: escrow_test_pass
+      POSTGRES_DB: escrow_test
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U escrow_test -d escrow_test']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_test_data:
