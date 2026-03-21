@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PipelineStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  FAILED
+  COMPLETED
+}
+
+enum DataSourceType {
+  POSTGRESQL
+  MYSQL
+  CSV
+  API
+}
+
+enum WidgetType {
+  LINE
+  BAR
+  PIE
+  METRIC
+  TABLE
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  tenantId  String
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model DataSource {
+  id            String         @id @default(uuid())
+  tenantId      String
+  name          String
+  type          DataSourceType
+  config        Json
+  status        String         @default("active")
+  syncFrequency String         @default("daily")
+  lastSyncAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  syncRuns   SyncRun[]
+  pipelines  Pipeline[]
+  dataPoints DataPoint[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Pipeline {
+  id           String         @id @default(uuid())
+  tenantId     String
+  name         String
+  description  String?
+  status       PipelineStatus @default(DRAFT)
+  config       Json
+  dataSourceId String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model Dashboard {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  layout      Json     @default("{}")
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  widgets Widget[]
+  embeds  Embed[]
+
+  @@index([tenantId])
+}
+
+model Widget {
+  id          String     @id @default(uuid())
+  tenantId    String
+  dashboardId String
+  type        WidgetType
+  title       String
+  config      Json
+  position    Json
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dashboardId])
+}
+
+model Embed {
+  id             String    @id @default(uuid())
+  tenantId       String
+  dashboardId    String
+  token          String    @unique @default(uuid())
+  expiresAt      DateTime?
+  allowedOrigins String[]
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([token])
+}
+
+model DataPoint {
+  id           String   @id @default(uuid())
+  tenantId     String
+  dataSourceId String
+  metric       String
+  value        Float
+  dimensions   Json     @default("{}")
+  timestamp    DateTime
+  createdAt    DateTime @default(now())
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, metric, timestamp])
+  @@index([dataSourceId])
+}
+
+model SyncRun {
+  id               String    @id @default(uuid())
+  tenantId         String
+  dataSourceId     String
+  status           String    @default("pending")
+  startedAt        DateTime  @default(now())
+  completedAt      DateTime?
+  recordsProcessed Int       @default(0)
+  errorMessage     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dataSourceId])
+}
+
+model QueryCache {
+  id        String   @id @default(uuid())
+  tenantId  String
+  queryHash String
+  result    Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, queryHash])
+  @@index([tenantId])
+  @@index([expiresAt])
+}

@@ -3,3 +3,10 @@ node_modules/
 
 # In-progress trials (not yet ready for publication)
 /trial15/
+
+# Methodology files — proprietary, gatekept from public
+**/METHODOLOGY.md
+**/REVISED_METHODOLOGY.md
+**/METHODOLOGY_NOTES.md
+METHODOLOGY_ADDENDUM_*.md
+TRIAL_PROTOCOL.md
