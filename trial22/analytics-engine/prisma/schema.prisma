@@ -1,0 +1,173 @@
+// [TRACED:DM-001] Prisma schema defines all 9 entities with snake_case mappings
+// [TRACED:DM-002] All models use @@map for snake_case table names
+// [TRACED:DM-003] All columns use @map for snake_case column names
+// [TRACED:DM-004] DataPoint.value uses Decimal(20,6) for financial precision
+// [TRACED:PV-003] DataPoint values use Decimal(20,6) for financial precision
+// [TRACED:DM-005] Role enum restricted to VIEWER, EDITOR, ANALYST (no ADMIN)
+// [TRACED:SA-001] PostgreSQL 16 as primary data store
+// [TRACED:SEC-001] Tenant isolation via tenantId foreign key on all scoped tables
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  VIEWER
+  EDITOR
+  ANALYST
+}
+
+enum PipelineStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum SyncRunStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users       User[]
+  dataSources DataSource[]
+  dataPoints  DataPoint[]
+  pipelines   Pipeline[]
+  dashboards  Dashboard[]
+  widgets     Widget[]
+  embeds      Embed[]
+  syncRuns    SyncRun[]
+
+  @@map("tenants")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  hashedPassword String   @map("hashed_password")
+  role           Role     @default(VIEWER)
+  tenantId       String   @map("tenant_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("users")
+}
+
+model DataSource {
+  id        String   @id @default(uuid())
+  name      String
+  type      String
+  config    Json     @default("{}")
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  dataPoints DataPoint[]
+  syncRuns   SyncRun[]
+
+  @@map("data_sources")
+}
+
+model DataPoint {
+  id           String   @id @default(uuid())
+  key          String
+  value        Decimal  @db.Decimal(20, 6)
+  timestamp    DateTime @default(now())
+  tenantId     String   @map("tenant_id")
+  dataSourceId String   @map("data_source_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@map("data_points")
+}
+
+model Pipeline {
+  id        String         @id @default(uuid())
+  name      String
+  status    PipelineStatus @default(DRAFT)
+  config    Json           @default("{}")
+  tenantId  String         @map("tenant_id")
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("pipelines")
+}
+
+model Dashboard {
+  id        String   @id @default(uuid())
+  name      String
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  widgets Widget[]
+
+  @@map("dashboards")
+}
+
+model Widget {
+  id          String   @id @default(uuid())
+  name        String
+  type        String
+  config      Json     @default("{}")
+  dashboardId String   @map("dashboard_id")
+  tenantId    String   @map("tenant_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@map("widgets")
+}
+
+model Embed {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  config    Json     @default("{}")
+  tenantId  String   @map("tenant_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("embeds")
+}
+
+model SyncRun {
+  id           String        @id @default(uuid())
+  status       SyncRunStatus @default(PENDING)
+  dataSourceId String        @map("data_source_id")
+  tenantId     String        @map("tenant_id")
+  startedAt    DateTime?     @map("started_at")
+  completedAt  DateTime?     @map("completed_at")
+  error        String?
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+
+  @@map("sync_runs")
+}
