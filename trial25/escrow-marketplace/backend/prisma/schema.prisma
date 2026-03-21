@@ -1,0 +1,141 @@
+// [TRACED:DM-001] Prisma schema with @@map on all models and @map on multi-word columns
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// [TRACED:DM-002] Role enum for ADMIN, BUYER, SELLER
+enum Role {
+  ADMIN
+  BUYER
+  SELLER
+}
+
+// [TRACED:DM-003] Transaction state machine: PENDING→FUNDED→RELEASED→COMPLETED/REFUNDED
+enum TransactionStatus {
+  PENDING
+  FUNDED
+  RELEASED
+  COMPLETED
+  REFUNDED
+}
+
+// [TRACED:DM-004] Dispute state machine: OPEN→UNDER_REVIEW→RESOLVED/ESCALATED
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  ESCALATED
+}
+
+// [TRACED:DM-005] Payout state machine: PENDING→PROCESSING→COMPLETED/FAILED
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum WebhookEventType {
+  TRANSACTION_CREATED
+  TRANSACTION_FUNDED
+  TRANSACTION_RELEASED
+  TRANSACTION_COMPLETED
+  TRANSACTION_REFUNDED
+  DISPUTE_OPENED
+  DISPUTE_RESOLVED
+  PAYOUT_COMPLETED
+  PAYOUT_FAILED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(BUYER)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  buyerTransactions  Transaction[] @relation("BuyerTransactions")
+  sellerTransactions Transaction[] @relation("SellerTransactions")
+  disputes           Dispute[]
+  payouts            Payout[]
+  webhooks           Webhook[]
+
+  @@map("users")
+}
+
+// [TRACED:DM-006] Transaction with Decimal for amount field
+model Transaction {
+  id          String            @id @default(uuid())
+  buyerId     String            @map("buyer_id")
+  sellerId    String            @map("seller_id")
+  amount      Decimal
+  currency    String            @default("USD")
+  status      TransactionStatus @default(PENDING)
+  description String?
+  escrowFee   Decimal           @default(0) @map("escrow_fee")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  buyer    User      @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  seller   User      @relation("SellerTransactions", fields: [sellerId], references: [id])
+  disputes Dispute[]
+  payouts  Payout[]
+
+  @@map("transactions")
+}
+
+model Dispute {
+  id            String        @id @default(uuid())
+  transactionId String        @map("transaction_id")
+  filedById     String        @map("filed_by_id")
+  reason        String
+  status        DisputeStatus @default(OPEN)
+  resolution    String?
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  filedBy     User        @relation(fields: [filedById], references: [id])
+
+  @@map("disputes")
+}
+
+// [TRACED:DM-007] Payout with Decimal for amount field
+model Payout {
+  id            String       @id @default(uuid())
+  transactionId String       @map("transaction_id")
+  recipientId   String       @map("recipient_id")
+  amount        Decimal
+  status        PayoutStatus @default(PENDING)
+  processedAt   DateTime?    @map("processed_at")
+  failureReason String?      @map("failure_reason")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  recipient   User        @relation(fields: [recipientId], references: [id])
+
+  @@map("payouts")
+}
+
+model Webhook {
+  id        String           @id @default(uuid())
+  url       String
+  secret    String
+  events    WebhookEventType[]
+  ownerId   String           @map("owner_id")
+  isActive  Boolean          @default(true) @map("is_active")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  owner User @relation(fields: [ownerId], references: [id])
+
+  @@map("webhooks")
+}

@@ -1,0 +1,198 @@
+// [TRACED:DM-001] Prisma schema with @@map on all models and @map on multi-word columns
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// [TRACED:DM-002] Role enum restricting registration roles
+enum Role {
+  ADMIN
+  VIEWER
+  EDITOR
+  ANALYST
+}
+
+// [TRACED:DM-003] Pipeline state machine: DRAFT→ACTIVE→PAUSED→ARCHIVED
+enum PipelineStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+// [TRACED:DM-004] SyncRun state machine: PENDING→RUNNING→COMPLETED/FAILED
+enum SyncRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum DataSourceType {
+  POSTGRESQL
+  MYSQL
+  REST_API
+  CSV
+  S3_BUCKET
+}
+
+enum WidgetType {
+  LINE_CHART
+  BAR_CHART
+  PIE_CHART
+  TABLE
+  METRIC_CARD
+  SCATTER_PLOT
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users       User[]
+  dataSources DataSource[]
+  pipelines   Pipeline[]
+  dashboards  Dashboard[]
+
+  @@map("tenants")
+}
+
+// [TRACED:SEC-001] User model with bcrypt-hashed password field
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(VIEWER)
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  dashboards Dashboard[]
+
+  @@map("users")
+}
+
+// [TRACED:DM-005] DataSource entity with connection metadata
+model DataSource {
+  id             String         @id @default(uuid())
+  name           String
+  type           DataSourceType
+  connectionUri  String         @map("connection_uri")
+  tenantId       String         @map("tenant_id")
+  isActive       Boolean        @default(true) @map("is_active")
+  lastSyncedAt   DateTime?      @map("last_synced_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  dataPoints DataPoint[]
+  syncRuns   SyncRun[]
+
+  @@map("data_sources")
+}
+
+// [TRACED:DM-006] DataPoint with Decimal for metric values
+model DataPoint {
+  id           String   @id @default(uuid())
+  dataSourceId String   @map("data_source_id")
+  metricName   String   @map("metric_name")
+  metricValue  Decimal  @map("metric_value")
+  dimensions   Json     @default("{}")
+  recordedAt   DateTime @map("recorded_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@map("data_points")
+}
+
+model Pipeline {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  status      PipelineStatus @default(DRAFT)
+  config      Json           @default("{}")
+  tenantId    String         @map("tenant_id")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  syncRuns SyncRun[]
+
+  @@map("pipelines")
+}
+
+model Dashboard {
+  id        String   @id @default(uuid())
+  title     String
+  tenantId  String   @map("tenant_id")
+  ownerId   String   @map("owner_id")
+  isPublic  Boolean  @default(false) @map("is_public")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  owner   User     @relation(fields: [ownerId], references: [id])
+  widgets Widget[]
+  embeds  Embed[]
+
+  @@map("dashboards")
+}
+
+model Widget {
+  id          String     @id @default(uuid())
+  title       String
+  type        WidgetType
+  config      Json       @default("{}")
+  positionX   Int        @default(0) @map("position_x")
+  positionY   Int        @default(0) @map("position_y")
+  width       Int        @default(4)
+  height      Int        @default(3)
+  dashboardId String     @map("dashboard_id")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+
+  @@map("widgets")
+}
+
+model Embed {
+  id          String   @id @default(uuid())
+  token       String   @unique
+  dashboardId String   @map("dashboard_id")
+  expiresAt   DateTime @map("expires_at")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+
+  @@map("embeds")
+}
+
+// [TRACED:DM-007] SyncRun with Decimal for records_processed
+model SyncRun {
+  id               String        @id @default(uuid())
+  pipelineId       String        @map("pipeline_id")
+  dataSourceId     String        @map("data_source_id")
+  status           SyncRunStatus @default(PENDING)
+  recordsProcessed Decimal       @default(0) @map("records_processed")
+  errorMessage     String?       @map("error_message")
+  startedAt        DateTime?     @map("started_at")
+  completedAt      DateTime?     @map("completed_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  pipeline   Pipeline   @relation(fields: [pipelineId], references: [id])
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@map("sync_runs")
+}
