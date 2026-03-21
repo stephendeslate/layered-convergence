@@ -1,0 +1,170 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PipelineStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model User {
+  id             String         @id @default(uuid()) @db.Uuid
+  email          String         @unique
+  passwordHash   String         @map("password_hash")
+  role           Role           @default(MEMBER)
+  organizationId String         @map("organization_id") @db.Uuid
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Organization {
+  id          String        @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String        @unique
+  apiKey      String        @unique @map("api_key")
+  branding    Json          @default("{}")
+  users       User[]
+  pipelines   Pipeline[]
+  dataSources DataSource[]
+  dashboards  Dashboard[]
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@map("organizations")
+}
+
+model Pipeline {
+  id             String              @id @default(uuid()) @db.Uuid
+  name           String
+  description    String?
+  status         PipelineStatus      @default(DRAFT)
+  config         Json                @default("{}")
+  organizationId String              @map("organization_id") @db.Uuid
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  runs           PipelineRun[]
+  statusHistory  PipelineStatusHistory[]
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  @@map("pipelines")
+}
+
+model PipelineStatusHistory {
+  id         String         @id @default(uuid()) @db.Uuid
+  pipelineId String         @map("pipeline_id") @db.Uuid
+  pipeline   Pipeline       @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  fromStatus PipelineStatus @map("from_status")
+  toStatus   PipelineStatus @map("to_status")
+  changedAt  DateTime       @default(now()) @map("changed_at")
+
+  @@map("pipeline_status_history")
+}
+
+model PipelineRun {
+  id           String   @id @default(uuid()) @db.Uuid
+  pipelineId   String   @map("pipeline_id") @db.Uuid
+  pipeline     Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  status       String   @default("pending")
+  rowsIngested Int      @default(0) @map("rows_ingested")
+  errorLog     String?  @map("error_log")
+  startedAt    DateTime @default(now()) @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+
+  @@map("pipeline_runs")
+}
+
+model DataSource {
+  id               String           @id @default(uuid()) @db.Uuid
+  name             String
+  type             String
+  connectionConfig Json             @default("{}") @map("connection_config")
+  fieldMapping     Json             @default("{}") @map("field_mapping")
+  syncSchedule     String?          @map("sync_schedule")
+  organizationId   String           @map("organization_id") @db.Uuid
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  transformations  Transformation[]
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  @@map("data_sources")
+}
+
+model Transformation {
+  id           String     @id @default(uuid()) @db.Uuid
+  name         String
+  type         String
+  config       Json       @default("{}")
+  order        Int        @default(0)
+  dataSourceId String     @map("data_source_id") @db.Uuid
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@map("transformations")
+}
+
+model Dashboard {
+  id             String            @id @default(uuid()) @db.Uuid
+  name           String
+  layout         Json              @default("{}")
+  isPublished    Boolean           @default(false) @map("is_published")
+  organizationId String            @map("organization_id") @db.Uuid
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  widgets        DashboardWidget[]
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  @@map("dashboards")
+}
+
+model DashboardWidget {
+  id          String    @id @default(uuid()) @db.Uuid
+  type        String
+  config      Json      @default("{}")
+  position    Int       @default(0)
+  size        String    @default("medium")
+  dashboardId String    @map("dashboard_id") @db.Uuid
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("dashboard_widgets")
+}
+
+model QueryCache {
+  id        String   @id @default(uuid()) @db.Uuid
+  queryHash String   @unique @map("query_hash")
+  result    Json     @default("{}")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("query_cache")
+}
+
+model DeadLetterEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  sourceType  String    @map("source_type")
+  payload     Json      @default("{}")
+  errorReason String    @map("error_reason")
+  retriedAt   DateTime? @map("retried_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("dead_letter_events")
+}

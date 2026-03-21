@@ -1,0 +1,100 @@
+// Work Order Status - 9-state machine
+export enum WorkOrderStatus {
+  UNASSIGNED = 'UNASSIGNED',
+  ASSIGNED = 'ASSIGNED',
+  EN_ROUTE = 'EN_ROUTE',
+  ON_SITE = 'ON_SITE',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  INVOICED = 'INVOICED',
+  PAID = 'PAID',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum TechnicianStatus {
+  AVAILABLE = 'AVAILABLE',
+  EN_ROUTE = 'EN_ROUTE',
+  ON_JOB = 'ON_JOB',
+  ON_BREAK = 'ON_BREAK',
+  OFF_DUTY = 'OFF_DUTY',
+}
+
+export enum Priority {
+  LOW = 'LOW',
+  NORMAL = 'NORMAL',
+  HIGH = 'HIGH',
+  URGENT = 'URGENT',
+}
+
+export enum InvoiceStatus {
+  DRAFT = 'DRAFT',
+  SENT = 'SENT',
+  PAID = 'PAID',
+  VOID = 'VOID',
+  OVERDUE = 'OVERDUE',
+}
+
+export enum ServiceType {
+  HVAC_INSTALL = 'HVAC_INSTALL',
+  HVAC_REPAIR = 'HVAC_REPAIR',
+  HVAC_MAINTENANCE = 'HVAC_MAINTENANCE',
+  PLUMBING_REPAIR = 'PLUMBING_REPAIR',
+  PLUMBING_INSTALL = 'PLUMBING_INSTALL',
+  ELECTRICAL_REPAIR = 'ELECTRICAL_REPAIR',
+  ELECTRICAL_INSTALL = 'ELECTRICAL_INSTALL',
+  GENERAL_MAINTENANCE = 'GENERAL_MAINTENANCE',
+  CLEANING = 'CLEANING',
+  PEST_CONTROL = 'PEST_CONTROL',
+  LANDSCAPING = 'LANDSCAPING',
+  APPLIANCE_REPAIR = 'APPLIANCE_REPAIR',
+  OTHER = 'OTHER',
+}
+
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  DISPATCHER = 'DISPATCHER',
+  TECHNICIAN = 'TECHNICIAN',
+  CUSTOMER = 'CUSTOMER',
+}
+
+export enum NotificationChannel {
+  SMS = 'SMS',
+  EMAIL = 'EMAIL',
+  PUSH = 'PUSH',
+}
+
+export enum NotificationType {
+  WORK_ORDER_CREATED = 'WORK_ORDER_CREATED',
+  TECHNICIAN_DISPATCHED = 'TECHNICIAN_DISPATCHED',
+  TECHNICIAN_EN_ROUTE = 'TECHNICIAN_EN_ROUTE',
+  ARRIVING_SOON_15 = 'ARRIVING_SOON_15',
+  ARRIVING_SOON_5 = 'ARRIVING_SOON_5',
+  TECHNICIAN_ARRIVED = 'TECHNICIAN_ARRIVED',
+  JOB_COMPLETED = 'JOB_COMPLETED',
+  INVOICE_SENT = 'INVOICE_SENT',
+  PAYMENT_RECEIVED = 'PAYMENT_RECEIVED',
+  JOB_CANCELLED = 'JOB_CANCELLED',
+  SCHEDULE_CHANGE = 'SCHEDULE_CHANGE',
+  NEW_ASSIGNMENT = 'NEW_ASSIGNMENT',
+}
+
+export enum LineItemType {
+  LABOR = 'LABOR',
+  MATERIAL = 'MATERIAL',
+  FLAT_RATE = 'FLAT_RATE',
+  DISCOUNT = 'DISCOUNT',
+  TAX = 'TAX',
+}
+
+// Valid work order state transitions (from -> to[])
+export const WORK_ORDER_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
+  [WorkOrderStatus.UNASSIGNED]: [WorkOrderStatus.ASSIGNED, WorkOrderStatus.CANCELLED],
+  [WorkOrderStatus.ASSIGNED]: [WorkOrderStatus.EN_ROUTE, WorkOrderStatus.UNASSIGNED, WorkOrderStatus.CANCELLED],
+  [WorkOrderStatus.EN_ROUTE]: [WorkOrderStatus.ON_SITE, WorkOrderStatus.ASSIGNED, WorkOrderStatus.CANCELLED],
+  [WorkOrderStatus.ON_SITE]: [WorkOrderStatus.IN_PROGRESS, WorkOrderStatus.CANCELLED],
+  [WorkOrderStatus.IN_PROGRESS]: [WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED],
+  [WorkOrderStatus.COMPLETED]: [WorkOrderStatus.INVOICED, WorkOrderStatus.CANCELLED],
+  [WorkOrderStatus.INVOICED]: [WorkOrderStatus.PAID, WorkOrderStatus.CANCELLED],
+  [WorkOrderStatus.PAID]: [],
+  [WorkOrderStatus.CANCELLED]: [],
+};

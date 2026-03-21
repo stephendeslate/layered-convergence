@@ -1,0 +1,238 @@
+import { PrismaService } from '../prisma/prisma.service.js';
+import { WorkOrderStatus } from '../../generated/prisma/client.js';
+import { CreateWorkOrderDto } from './dto/create-work-order.dto.js';
+export declare class WorkOrderService {
+    private readonly prisma;
+    constructor(prisma: PrismaService);
+    create(dto: CreateWorkOrderDto): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        companyId: string;
+        status: WorkOrderStatus;
+        customerId: string;
+        technicianId: string | null;
+        priority: import("../../generated/prisma/enums.js").WorkOrderPriority;
+        scheduledAt: Date | null;
+        description: string;
+        notes: string | null;
+        completedAt: Date | null;
+    }>;
+    findAllByCompany(companyId: string): Promise<({
+        technician: {
+            id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            companyId: string;
+            email: string;
+            skills: string[];
+            phone: string | null;
+            currentLat: import("@prisma/client/runtime/library").Decimal | null;
+            currentLng: import("@prisma/client/runtime/library").Decimal | null;
+            status: import("../../generated/prisma/enums.js").TechnicianStatus;
+        } | null;
+        customer: {
+            id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            companyId: string;
+            email: string | null;
+            phone: string | null;
+            address: string;
+            lat: import("@prisma/client/runtime/library").Decimal | null;
+            lng: import("@prisma/client/runtime/library").Decimal | null;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        companyId: string;
+        status: WorkOrderStatus;
+        customerId: string;
+        technicianId: string | null;
+        priority: import("../../generated/prisma/enums.js").WorkOrderPriority;
+        scheduledAt: Date | null;
+        description: string;
+        notes: string | null;
+        completedAt: Date | null;
+    })[]>;
+    findOne(id: string, companyId: string): Promise<{
+        technician: {
+            id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            companyId: string;
+            email: string;
+            skills: string[];
+            phone: string | null;
+            currentLat: import("@prisma/client/runtime/library").Decimal | null;
+            currentLng: import("@prisma/client/runtime/library").Decimal | null;
+            status: import("../../generated/prisma/enums.js").TechnicianStatus;
+        } | null;
+        customer: {
+            id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            companyId: string;
+            email: string | null;
+            phone: string | null;
+            address: string;
+            lat: import("@prisma/client/runtime/library").Decimal | null;
+            lng: import("@prisma/client/runtime/library").Decimal | null;
+        };
+        statusHistory: {
+            id: string;
+            createdAt: Date;
+            workOrderId: string;
+            fromStatus: WorkOrderStatus;
+            toStatus: WorkOrderStatus;
+            note: string | null;
+        }[];
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        companyId: string;
+        status: WorkOrderStatus;
+        customerId: string;
+        technicianId: string | null;
+        priority: import("../../generated/prisma/enums.js").WorkOrderPriority;
+        scheduledAt: Date | null;
+        description: string;
+        notes: string | null;
+        completedAt: Date | null;
+    }>;
+    transition(id: string, companyId: string, toStatus: WorkOrderStatus, data?: {
+        technicianId?: string;
+        note?: string;
+    }): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        companyId: string;
+        status: WorkOrderStatus;
+        customerId: string;
+        technicianId: string | null;
+        priority: import("../../generated/prisma/enums.js").WorkOrderPriority;
+        scheduledAt: Date | null;
+        description: string;
+        notes: string | null;
+        completedAt: Date | null;
+    }>;
+    assign(id: string, companyId: string, technicianId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        companyId: string;
+        status: WorkOrderStatus;
+        customerId: string;
+        technicianId: string | null;
+        priority: import("../../generated/prisma/enums.js").WorkOrderPriority;
+        scheduledAt: Date | null;
+        description: string;
+        notes: string | null;
+        completedAt: Date | null;
+    }>;
+    unassign(id: string, companyId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        companyId: string;
+        status: WorkOrderStatus;
+        customerId: string;
+        technicianId: string | null;
+        priority: import("../../generated/prisma/enums.js").WorkOrderPriority;
+        scheduledAt: Date | null;
+        description: string;
+        notes: string | null;
+        completedAt: Date | null;
+    }>;
+    enRoute(id: string, companyId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        companyId: string;
+        status: WorkOrderStatus;
+        customerId: string;
+        technicianId: string | null;
+        priority: import("../../generated/prisma/enums.js").WorkOrderPriority;
+        scheduledAt: Date | null;
+        description: string;
+        notes: string | null;
+        completedAt: Date | null;
+    }>;
+    onSite(id: string, companyId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        companyId: string;
+        status: WorkOrderStatus;
+        customerId: string;
+        technicianId: string | null;
+        priority: import("../../generated/prisma/enums.js").WorkOrderPriority;
+        scheduledAt: Date | null;
+        description: string;
+        notes: string | null;
+        completedAt: Date | null;
+    }>;
+    start(id: string, companyId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        companyId: string;
+        status: WorkOrderStatus;
+        customerId: string;
+        technicianId: string | null;
+        priority: import("../../generated/prisma/enums.js").WorkOrderPriority;
+        scheduledAt: Date | null;
+        description: string;
+        notes: string | null;
+        completedAt: Date | null;
+    }>;
+    complete(id: string, companyId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        companyId: string;
+        status: WorkOrderStatus;
+        customerId: string;
+        technicianId: string | null;
+        priority: import("../../generated/prisma/enums.js").WorkOrderPriority;
+        scheduledAt: Date | null;
+        description: string;
+        notes: string | null;
+        completedAt: Date | null;
+    }>;
+    returnToAssigned(id: string, companyId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        companyId: string;
+        status: WorkOrderStatus;
+        customerId: string;
+        technicianId: string | null;
+        priority: import("../../generated/prisma/enums.js").WorkOrderPriority;
+        scheduledAt: Date | null;
+        description: string;
+        notes: string | null;
+        completedAt: Date | null;
+    }>;
+    autoAssign(id: string, companyId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        companyId: string;
+        status: WorkOrderStatus;
+        customerId: string;
+        technicianId: string | null;
+        priority: import("../../generated/prisma/enums.js").WorkOrderPriority;
+        scheduledAt: Date | null;
+        description: string;
+        notes: string | null;
+        completedAt: Date | null;
+    }>;
+}

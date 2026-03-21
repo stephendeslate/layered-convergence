@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id           String       @id @default(uuid()) @db.Uuid
+  name         String
+  apiKey       String       @unique
+  primaryColor String?
+  fontFamily   String?
+  logoUrl      String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  dashboards   Dashboard[]
+  dataSources  DataSource[]
+  dataPoints   DataPoint[]
+}
+
+model Dashboard {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenantId    String       @db.Uuid
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  name        String
+  layout      Json
+  isPublished Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  widgets     Widget[]
+  embedConfig EmbedConfig?
+}
+
+enum WidgetType {
+  LINE_CHART
+  BAR_CHART
+  PIE_CHART
+  AREA_CHART
+  KPI_CARD
+  TABLE
+  FUNNEL
+}
+
+model Widget {
+  id          String     @id @default(uuid()) @db.Uuid
+  dashboardId String     @db.Uuid
+  dashboard   Dashboard  @relation(fields: [dashboardId], references: [id])
+  type        WidgetType
+  config      Json
+  positionX   Int
+  positionY   Int
+  width       Int
+  height      Int
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+enum DataSourceType {
+  POSTGRESQL
+  API
+  CSV
+  WEBHOOK
+}
+
+model DataSource {
+  id               String            @id @default(uuid()) @db.Uuid
+  tenantId         String            @db.Uuid
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  name             String
+  type             DataSourceType
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  config           DataSourceConfig?
+  syncRuns         SyncRun[]
+  dataPoints       DataPoint[]
+  deadLetterEvents DeadLetterEvent[]
+}
+
+model DataSourceConfig {
+  id               String     @id @default(uuid()) @db.Uuid
+  dataSourceId     String     @unique @db.Uuid
+  dataSource       DataSource @relation(fields: [dataSourceId], references: [id])
+  connectionConfig Json
+  fieldMapping     Json
+  transformSteps   Json
+  syncSchedule     String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+enum SyncRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model SyncRun {
+  id           String        @id @default(uuid()) @db.Uuid
+  dataSourceId String        @db.Uuid
+  dataSource   DataSource    @relation(fields: [dataSourceId], references: [id])
+  status       SyncRunStatus
+  rowsIngested Int           @default(0)
+  errorLog     String?
+  startedAt    DateTime      @default(now())
+  completedAt  DateTime?
+}
+
+model DataPoint {
+  id           String     @id @default(uuid()) @db.Uuid
+  dataSourceId String     @db.Uuid
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id])
+  tenantId     String     @db.Uuid
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  timestamp    DateTime
+  dimensions   Json
+  metrics      Json
+  createdAt    DateTime   @default(now())
+}
+
+model EmbedConfig {
+  id             String    @id @default(uuid()) @db.Uuid
+  dashboardId    String    @unique @db.Uuid
+  dashboard      Dashboard @relation(fields: [dashboardId], references: [id])
+  allowedOrigins String[]
+  themeOverrides Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model QueryCache {
+  id        String   @id @default(uuid()) @db.Uuid
+  queryHash String   @unique
+  result    Json
+  expiresAt DateTime
+}
+
+model DeadLetterEvent {
+  id           String     @id @default(uuid()) @db.Uuid
+  dataSourceId String     @db.Uuid
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id])
+  payload      Json
+  errorReason  String
+  createdAt    DateTime   @default(now())
+  retriedAt    DateTime?
+}

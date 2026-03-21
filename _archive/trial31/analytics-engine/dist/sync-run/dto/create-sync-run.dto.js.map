@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../../src/sync-run/dto/create-sync-run.dto.ts"],"sourcesContent":["import { IsString } from 'class-validator';\n\nexport class CreateSyncRunDto {\n  @IsString()\n  dataSourceId!: string;\n}\n"],"names":["CreateSyncRunDto"],"mappings":";;;;+BAEaA;;;eAAAA;;;gCAFY;;;;;;;;;;AAElB,IAAA,AAAMA,mBAAN,MAAMA;AAGb"}

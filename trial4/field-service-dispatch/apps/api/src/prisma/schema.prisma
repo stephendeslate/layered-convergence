@@ -1,0 +1,175 @@
+// Field Service Dispatch — Prisma Schema
+// Multi-tenant field service operations with GPS tracking
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id           String   @id @default(uuid())
+  name         String
+  primaryColor String   @default("#3B82F6")
+  logoUrl      String?
+  serviceArea  Json?    // GeoJSON polygon
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  technicians  Technician[]
+  customers    Customer[]
+  workOrders   WorkOrder[]
+}
+
+model Technician {
+  id         String          @id @default(uuid())
+  companyId  String
+  name       String
+  email      String
+  phone      String?
+  skills     String[]        @default([])
+  status     TechnicianStatus @default(AVAILABLE)
+  currentLat Float?
+  currentLng Float?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  company    Company         @relation(fields: [companyId], references: [id])
+  workOrders WorkOrder[]
+  routes     Route[]
+
+  @@index([companyId])
+  @@index([status])
+}
+
+enum TechnicianStatus {
+  AVAILABLE
+  EN_ROUTE
+  ON_SITE
+  OFF_DUTY
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  email     String?
+  phone     String?
+  address   String
+  lat       Float?
+  lng       Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  workOrders WorkOrder[]
+
+  @@index([companyId])
+}
+
+model WorkOrder {
+  id             String          @id @default(uuid())
+  companyId      String
+  customerId     String
+  technicianId   String?
+  priority       Priority        @default(MEDIUM)
+  status         WorkOrderStatus @default(UNASSIGNED)
+  description    String
+  scheduledAt    DateTime?
+  completedAt    DateTime?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  company        Company         @relation(fields: [companyId], references: [id])
+  customer       Customer        @relation(fields: [customerId], references: [id])
+  technician     Technician?     @relation(fields: [technicianId], references: [id])
+  statusHistory  WorkOrderStatusHistory[]
+  photos         JobPhoto[]
+  invoice        Invoice?
+
+  @@index([companyId])
+  @@index([technicianId])
+  @@index([status])
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum WorkOrderStatus {
+  UNASSIGNED
+  ASSIGNED
+  EN_ROUTE
+  ON_SITE
+  IN_PROGRESS
+  COMPLETED
+  INVOICED
+  PAID
+}
+
+model WorkOrderStatusHistory {
+  id          String          @id @default(uuid())
+  workOrderId String
+  fromStatus  WorkOrderStatus
+  toStatus    WorkOrderStatus
+  note        String?
+  createdAt   DateTime        @default(now())
+
+  workOrder   WorkOrder       @relation(fields: [workOrderId], references: [id])
+
+  @@index([workOrderId])
+}
+
+model Route {
+  id                String   @id @default(uuid())
+  technicianId      String
+  date              DateTime @db.Date
+  waypoints         Json     @default("[]")
+  optimizedOrder    Int[]    @default([])
+  estimatedDuration Int?     // minutes
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  technician        Technician @relation(fields: [technicianId], references: [id])
+
+  @@index([technicianId, date])
+}
+
+model JobPhoto {
+  id          String   @id @default(uuid())
+  workOrderId String
+  url         String
+  caption     String?
+  uploadedAt  DateTime @default(now())
+
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+
+  @@index([workOrderId])
+}
+
+model Invoice {
+  id                    String        @id @default(uuid())
+  workOrderId           String        @unique
+  amount                Int           // cents
+  status                InvoiceStatus @default(DRAFT)
+  stripePaymentIntentId String?       @unique
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  workOrder             WorkOrder     @relation(fields: [workOrderId], references: [id])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}

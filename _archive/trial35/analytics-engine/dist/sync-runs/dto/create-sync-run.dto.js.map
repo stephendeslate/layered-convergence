@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../../src/sync-runs/dto/create-sync-run.dto.ts"],"sourcesContent":["import { IsNotEmpty, IsString } from 'class-validator';\n\nexport class CreateSyncRunDto {\n  @IsString()\n  @IsNotEmpty()\n  dataSourceId!: string;\n}\n"],"names":["CreateSyncRunDto"],"mappings":";;;;+BAEaA;;;eAAAA;;;gCAFwB;;;;;;;;;;AAE9B,IAAA,AAAMA,mBAAN,MAAMA;AAIb"}

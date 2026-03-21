@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  BUYER
+  PROVIDER
+  ADMIN
+}
+
+enum TransactionStatus {
+  CREATED
+  PAYMENT_PENDING
+  HELD
+  RELEASED
+  DISPUTED
+  EXPIRED
+  TRANSFER_PENDING
+  TRANSFERRED
+  PAYOUT_PENDING
+  PAID
+  RESOLVED_BUYER
+  RESOLVED_PROVIDER
+  REFUND_PENDING
+  REFUNDED
+}
+
+enum DisputeStatus {
+  OPEN
+  EVIDENCE_SUBMITTED
+  UNDER_REVIEW
+  RESOLVED_BUYER
+  RESOLVED_PROVIDER
+  ESCALATED
+}
+
+enum OnboardingStatus {
+  PENDING
+  IN_PROGRESS
+  ACTIVE
+  RESTRICTED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  buyerTransactions    Transaction[]          @relation("BuyerTransactions")
+  providerTransactions Transaction[]          @relation("ProviderTransactions")
+  connectedAccount     StripeConnectedAccount?
+  disputesRaised       Dispute[]
+  payouts              Payout[]
+
+  @@map("users")
+}
+
+model Transaction {
+  id                    String            @id @default(uuid())
+  buyerId               String
+  providerId            String
+  amount                Int
+  currency              String            @default("usd")
+  description           String
+  status                TransactionStatus @default(CREATED)
+  platformFee           Int               @default(0)
+  holdUntil             DateTime?
+  stripePaymentIntentId String?           @unique
+  stripeTransferId      String?           @unique
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  buyer        User                       @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  provider     User                       @relation("ProviderTransactions", fields: [providerId], references: [id])
+  stateHistory TransactionStateHistory[]
+  disputes     Dispute[]
+
+  @@index([buyerId])
+  @@index([providerId])
+  @@index([status])
+  @@map("transactions")
+}
+
+model TransactionStateHistory {
+  id            String   @id @default(uuid())
+  transactionId String
+  fromState     String
+  toState       String
+  reason        String?
+  timestamp     DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId, timestamp])
+  @@map("transaction_state_history")
+}
+
+model Dispute {
+  id            String        @id @default(uuid())
+  transactionId String
+  raisedBy      String
+  reason        String
+  description   String?
+  evidence      Json          @default("[]")
+  status        DisputeStatus @default(OPEN)
+  resolution    String?
+  resolvedAt    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  transaction  Transaction @relation(fields: [transactionId], references: [id])
+  raisedByUser User        @relation(fields: [raisedBy], references: [id])
+
+  @@index([transactionId])
+  @@map("disputes")
+}
+
+model StripeConnectedAccount {
+  id               String           @id @default(uuid())
+  userId           String           @unique
+  stripeAccountId  String           @unique
+  onboardingStatus OnboardingStatus @default(PENDING)
+  chargesEnabled   Boolean          @default(false)
+  payoutsEnabled   Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("stripe_connected_accounts")
+}
+
+model Payout {
+  id               String   @id @default(uuid())
+  providerId       String
+  amount           Int
+  currency         String   @default("usd")
+  stripeTransferId String?
+  status           String   @default("pending")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  provider User @relation(fields: [providerId], references: [id])
+
+  @@index([providerId])
+  @@map("payouts")
+}
+
+model WebhookLog {
+  id          String    @id @default(uuid())
+  provider    String    @default("stripe")
+  eventType   String
+  eventId     String    @unique
+  payload     Json
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  @@index([eventId])
+  @@map("webhook_logs")
+}

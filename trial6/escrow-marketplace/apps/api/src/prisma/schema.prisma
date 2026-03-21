@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  buyerTransactions    Transaction[] @relation("BuyerTransactions")
+  providerTransactions Transaction[] @relation("ProviderTransactions")
+  disputes             Dispute[]
+  connectedAccount     StripeConnectedAccount?
+  payouts              Payout[]
+  notifications        Notification[]
+}
+
+enum UserRole {
+  BUYER
+  PROVIDER
+  ADMIN
+}
+
+model Transaction {
+  id               String            @id @default(uuid())
+  buyerId          String
+  providerId       String
+  amount           Int
+  currency         String            @default("usd")
+  status           TransactionStatus
+  platformFeeRate  Float             @default(0.05)
+  platformFee      Int
+  holdUntil        DateTime?
+  stripePaymentIntentId String?      @unique
+  stripeTransferId String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  buyer            User              @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  provider         User              @relation("ProviderTransactions", fields: [providerId], references: [id])
+  stateHistory     TransactionStateHistory[]
+  disputes         Dispute[]
+
+  @@index([buyerId])
+  @@index([providerId])
+  @@index([status])
+}
+
+enum TransactionStatus {
+  PENDING
+  HELD
+  RELEASED
+  DISPUTED
+  REFUNDED
+  EXPIRED
+}
+
+model TransactionStateHistory {
+  id            String            @id @default(uuid())
+  transactionId String
+  fromState     TransactionStatus
+  toState       TransactionStatus
+  reason        String?
+  createdAt     DateTime          @default(now())
+
+  transaction   Transaction       @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+}
+
+model Dispute {
+  id            String          @id @default(uuid())
+  transactionId String
+  raisedById    String
+  reason        String
+  evidence      Json            @default("[]")
+  status        DisputeStatus
+  resolution    String?
+  resolvedAt    DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  transaction   Transaction     @relation(fields: [transactionId], references: [id])
+  raisedBy      User            @relation(fields: [raisedById], references: [id])
+
+  @@index([transactionId])
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_BUYER
+  RESOLVED_PROVIDER
+  ESCALATED
+}
+
+model StripeConnectedAccount {
+  id                String                @id @default(uuid())
+  userId            String                @unique
+  stripeAccountId   String                @unique
+  onboardingStatus  OnboardingStatus
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  user              User                  @relation(fields: [userId], references: [id])
+}
+
+enum OnboardingStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETE
+  RESTRICTED
+}
+
+model Payout {
+  id               String       @id @default(uuid())
+  userId           String
+  amount           Int
+  stripeTransferId String?
+  status           PayoutStatus
+  createdAt        DateTime     @default(now())
+
+  user             User         @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model WebhookLog {
+  id             String   @id @default(uuid())
+  provider       String   @default("stripe")
+  eventType      String
+  eventId        String   @unique
+  payload        Json
+  processedAt    DateTime?
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+
+  @@index([eventType])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}

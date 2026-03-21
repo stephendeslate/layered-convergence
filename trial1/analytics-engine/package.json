@@ -1,0 +1,35 @@
+{
+  "name": "analytics-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Embeddable multi-tenant analytics platform",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "db:generate": "turbo db:generate --filter=api",
+    "db:migrate": "turbo db:migrate --filter=api",
+    "db:seed": "turbo db:seed --filter=api"
+  },
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "@nestjs/core",
+      "sharp",
+      "msgpackr-extract",
+      "unrs-resolver"
+    ]
+  },
+  "devDependencies": {
+    "turbo": "^2.8.20"
+  }
+}

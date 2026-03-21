@@ -1,0 +1,545 @@
+// Field Service Dispatch - Complete Prisma Schema
+// Source: specs/SRS-2.md Section 3
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+// ============================================================
+// ENUMERATIONS
+// ============================================================
+
+enum WorkOrderStatus {
+  UNASSIGNED
+  ASSIGNED
+  EN_ROUTE
+  ON_SITE
+  IN_PROGRESS
+  COMPLETED
+  INVOICED
+  PAID
+  CANCELLED
+}
+
+enum TechnicianStatus {
+  AVAILABLE
+  EN_ROUTE
+  ON_JOB
+  ON_BREAK
+  OFF_DUTY
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  VOID
+  OVERDUE
+}
+
+enum ServiceType {
+  HVAC_INSTALL
+  HVAC_REPAIR
+  HVAC_MAINTENANCE
+  PLUMBING_REPAIR
+  PLUMBING_INSTALL
+  ELECTRICAL_REPAIR
+  ELECTRICAL_INSTALL
+  GENERAL_MAINTENANCE
+  CLEANING
+  PEST_CONTROL
+  LANDSCAPING
+  APPLIANCE_REPAIR
+  OTHER
+}
+
+enum UserRole {
+  ADMIN
+  DISPATCHER
+  TECHNICIAN
+  CUSTOMER
+}
+
+enum NotificationChannel {
+  SMS
+  EMAIL
+  PUSH
+}
+
+enum NotificationType {
+  WORK_ORDER_CREATED
+  TECHNICIAN_DISPATCHED
+  TECHNICIAN_EN_ROUTE
+  ARRIVING_SOON_15
+  ARRIVING_SOON_5
+  TECHNICIAN_ARRIVED
+  JOB_COMPLETED
+  INVOICE_SENT
+  PAYMENT_RECEIVED
+  JOB_CANCELLED
+  SCHEDULE_CHANGE
+  NEW_ASSIGNMENT
+}
+
+enum LineItemType {
+  LABOR
+  MATERIAL
+  FLAT_RATE
+  DISCOUNT
+  TAX
+}
+
+// ============================================================
+// TENANT
+// ============================================================
+
+model Company {
+  id                 String  @id @default(cuid())
+  name               String
+  slug               String  @unique
+  email              String
+  phone              String?
+  logoUrl            String?
+  website            String?
+  taxRate            Decimal @default(0) @db.Decimal(5, 4)
+  serviceAreaPolygon String? // GeoJSON polygon stored as text
+  timezone           String  @default("America/New_York")
+  settings           Json    @default("{}")
+  stripeCustomerId   String? @unique
+  stripeAccountId    String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       User[]
+  technicians Technician[]
+  customers   Customer[]
+  workOrders  WorkOrder[]
+  invoices    Invoice[]
+
+  @@map("companies")
+}
+
+// ============================================================
+// USERS & AUTH
+// ============================================================
+
+model User {
+  id           String   @id @default(cuid())
+  companyId    String
+  email        String
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole
+  phone        String?
+  avatarUrl    String?
+  isActive     Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company           Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  technicianProfile Technician?
+  workOrderHistory  WorkOrderStatusHistory[]
+  refreshTokens     RefreshToken[]
+
+  @@unique([companyId, email])
+  @@index([companyId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+// TECHNICIAN
+// ============================================================
+
+model Technician {
+  id               String           @id @default(cuid())
+  companyId        String
+  userId           String           @unique
+  status           TechnicianStatus @default(OFF_DUTY)
+  skills           ServiceType[]
+  maxJobsPerDay    Int              @default(8)
+  currentLatitude  Decimal?         @db.Decimal(10, 7)
+  currentLongitude Decimal?         @db.Decimal(10, 7)
+  lastPositionAt   DateTime?
+  vehicleInfo      String?
+  color            String           @default("#3B82F6")
+  simulationMode   Boolean          @default(false)
+  schedule         Json             @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workOrders WorkOrder[]
+  positions  TechnicianPosition[]
+  routes     Route[]
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([currentLatitude, currentLongitude])
+  @@map("technicians")
+}
+
+model TechnicianPosition {
+  id           String   @id @default(cuid())
+  companyId    String
+  technicianId String
+  latitude     Decimal  @db.Decimal(10, 7)
+  longitude    Decimal  @db.Decimal(10, 7)
+  accuracy     Decimal? @db.Decimal(8, 2)
+  heading      Decimal? @db.Decimal(6, 2)
+  speed        Decimal? @db.Decimal(8, 2)
+  recordedAt   DateTime
+
+  createdAt DateTime @default(now())
+
+  technician Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([technicianId, recordedAt])
+  @@index([recordedAt])
+  @@index([latitude, longitude])
+  @@map("technician_positions")
+}
+
+// ============================================================
+// CUSTOMER
+// ============================================================
+
+model Customer {
+  id        String  @id @default(cuid())
+  companyId String
+  firstName String
+  lastName  String
+  email     String
+  phone     String?
+  address   String?
+  city      String?
+  state     String?
+  zipCode   String?
+  latitude  Decimal? @db.Decimal(10, 7)
+  longitude Decimal? @db.Decimal(10, 7)
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workOrders WorkOrder[]
+  invoices   Invoice[]
+  magicLinks MagicLink[]
+
+  @@unique([companyId, email])
+  @@index([companyId])
+  @@map("customers")
+}
+
+model MagicLink {
+  id         String    @id @default(cuid())
+  customerId String
+  token      String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("magic_links")
+}
+
+// ============================================================
+// WORK ORDER
+// ============================================================
+
+model WorkOrder {
+  id              String          @id @default(cuid())
+  companyId       String
+  customerId      String
+  technicianId    String?
+  referenceNumber String
+  status          WorkOrderStatus @default(UNASSIGNED)
+  priority        Priority        @default(NORMAL)
+  serviceType     ServiceType
+  description     String?
+  notes           String?
+
+  // Location
+  address   String
+  city      String
+  state     String
+  zipCode   String
+  latitude  Decimal @db.Decimal(10, 7)
+  longitude Decimal @db.Decimal(10, 7)
+
+  // Scheduling
+  scheduledStart   DateTime
+  scheduledEnd     DateTime
+  estimatedMinutes Int       @default(60)
+  actualStart      DateTime?
+  actualEnd        DateTime?
+
+  // Customer tracking
+  trackingToken     String?   @unique
+  trackingExpiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company       Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer      Customer               @relation(fields: [customerId], references: [id])
+  technician    Technician?            @relation(fields: [technicianId], references: [id])
+  statusHistory WorkOrderStatusHistory[]
+  lineItems     LineItem[]
+  photos        JobPhoto[]
+  invoice       Invoice?
+  routeStops    RouteStop[]
+  notifications Notification[]
+
+  @@unique([companyId, referenceNumber])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, scheduledStart])
+  @@index([companyId, technicianId])
+  @@index([customerId])
+  @@index([trackingToken])
+  @@index([latitude, longitude])
+  @@map("work_orders")
+}
+
+model WorkOrderStatusHistory {
+  id          String           @id @default(cuid())
+  companyId   String
+  workOrderId String
+  fromStatus  WorkOrderStatus?
+  toStatus    WorkOrderStatus
+  changedById String?
+  notes       String?
+  latitude    Decimal?         @db.Decimal(10, 7)
+  longitude   Decimal?         @db.Decimal(10, 7)
+
+  createdAt DateTime @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  changedBy User?     @relation(fields: [changedById], references: [id])
+
+  @@index([companyId])
+  @@index([workOrderId, createdAt])
+  @@map("work_order_status_history")
+}
+
+model LineItem {
+  id          String       @id @default(cuid())
+  companyId   String
+  workOrderId String
+  invoiceId   String?
+  type        LineItemType
+  description String
+  quantity    Decimal      @db.Decimal(10, 2)
+  unitPrice   Decimal      @db.Decimal(10, 2)
+  totalPrice  Decimal      @db.Decimal(10, 2)
+  sortOrder   Int          @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  invoice   Invoice?  @relation(fields: [invoiceId], references: [id])
+
+  @@index([companyId])
+  @@index([workOrderId])
+  @@index([invoiceId])
+  @@map("line_items")
+}
+
+model JobPhoto {
+  id           String   @id @default(cuid())
+  companyId    String
+  workOrderId  String
+  technicianId String?
+  url          String
+  thumbnailUrl String?
+  caption      String?
+  mimeType     String   @default("image/jpeg")
+  sizeBytes    Int?
+  latitude     Decimal? @db.Decimal(10, 7)
+  longitude    Decimal? @db.Decimal(10, 7)
+
+  createdAt DateTime @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([workOrderId])
+  @@map("job_photos")
+}
+
+// ============================================================
+// ROUTE & OPTIMIZATION
+// ============================================================
+
+model Route {
+  id                   String  @id @default(cuid())
+  companyId            String
+  technicianId         String
+  date                 DateTime @db.Date
+  optimized            Boolean  @default(false)
+  totalDistanceMeters  Int?
+  totalDurationSeconds Int?
+  geometryJson         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  technician Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  stops      RouteStop[]
+
+  @@unique([technicianId, date])
+  @@index([companyId])
+  @@index([companyId, date])
+  @@map("routes")
+}
+
+model RouteStop {
+  id                      String    @id @default(cuid())
+  companyId               String
+  routeId                 String
+  workOrderId             String
+  sortOrder               Int
+  estimatedArrival        DateTime?
+  estimatedDeparture      DateTime?
+  distanceFromPrevMeters  Int?
+  durationFromPrevSeconds Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  route     Route     @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
+
+  @@index([companyId])
+  @@index([routeId, sortOrder])
+  @@map("route_stops")
+}
+
+// ============================================================
+// INVOICE & PAYMENT
+// ============================================================
+
+model Invoice {
+  id               String        @id @default(cuid())
+  companyId        String
+  customerId       String
+  workOrderId      String        @unique
+  invoiceNumber    String
+  status           InvoiceStatus @default(DRAFT)
+  subtotal         Decimal       @db.Decimal(10, 2)
+  taxAmount        Decimal       @db.Decimal(10, 2)
+  totalAmount      Decimal       @db.Decimal(10, 2)
+  stripeInvoiceId  String?       @unique
+  stripePaymentUrl String?
+  paidAt           DateTime?
+  sentAt           DateTime?
+  dueDate          DateTime?
+  notes            String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer  Customer  @relation(fields: [customerId], references: [id])
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
+  lineItems LineItem[]
+
+  @@unique([companyId, invoiceNumber])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([customerId])
+  @@index([stripeInvoiceId])
+  @@map("invoices")
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+model Notification {
+  id            String              @id @default(cuid())
+  companyId     String
+  workOrderId   String?
+  recipientType UserRole
+  recipientId   String
+  channel       NotificationChannel
+  type          NotificationType
+  subject       String?
+  body          String
+  sentAt        DateTime?
+  failedAt      DateTime?
+  failureReason String?
+  externalId    String?
+
+  createdAt DateTime @default(now())
+
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id])
+
+  @@index([companyId])
+  @@index([workOrderId])
+  @@index([recipientId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id         String  @id @default(cuid())
+  companyId  String
+  userId     String?
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([companyId, entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

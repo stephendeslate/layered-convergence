@@ -1,0 +1,14 @@
+import * as Prisma from './internal/prismaNamespaceBrowser.js';
+export { Prisma };
+export * as $Enums from './enums.js';
+export * from './enums.js';
+export type Tenant = Prisma.TenantModel;
+export type Dashboard = Prisma.DashboardModel;
+export type Widget = Prisma.WidgetModel;
+export type DataSource = Prisma.DataSourceModel;
+export type DataSourceConfig = Prisma.DataSourceConfigModel;
+export type SyncRun = Prisma.SyncRunModel;
+export type DataPoint = Prisma.DataPointModel;
+export type EmbedConfig = Prisma.EmbedConfigModel;
+export type QueryCache = Prisma.QueryCacheModel;
+export type DeadLetterEvent = Prisma.DeadLetterEventModel;

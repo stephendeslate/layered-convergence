@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      String   // buyer, provider, admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  buyerTransactions    Transaction[]        @relation("BuyerTransactions")
+  providerTransactions Transaction[]        @relation("ProviderTransactions")
+  connectedAccount     StripeConnectedAccount?
+  payouts              Payout[]
+  raisedDisputes       Dispute[]
+
+  @@map("users")
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  buyerId       String
+  providerId    String
+  amount        Int      // cents
+  currency      String   @default("usd")
+  status        String   @default("pending") // pending, held, released, disputed, refunded, expired
+  platformFee   Int      @default(0) // cents
+  holdUntil     DateTime?
+  stripePaymentIntentId String? @unique
+  stripeTransferId      String?
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  buyer         User     @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  provider      User     @relation("ProviderTransactions", fields: [providerId], references: [id])
+  stateHistory  TransactionStateHistory[]
+  disputes      Dispute[]
+
+  @@index([buyerId])
+  @@index([providerId])
+  @@index([status])
+  @@map("transactions")
+}
+
+model TransactionStateHistory {
+  id            String   @id @default(cuid())
+  transactionId String
+  fromState     String
+  toState       String
+  reason        String?
+  timestamp     DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId])
+  @@map("transaction_state_history")
+}
+
+model Dispute {
+  id            String    @id @default(cuid())
+  transactionId String
+  raisedById    String
+  reason        String
+  evidence      Json      @default("[]")
+  status        String    @default("open") // open, under_review, resolved_buyer, resolved_provider, escalated
+  resolution    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  resolvedAt    DateTime?
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  raisedBy    User        @relation(fields: [raisedById], references: [id])
+
+  @@index([transactionId])
+  @@map("disputes")
+}
+
+model StripeConnectedAccount {
+  id               String @id @default(cuid())
+  userId           String @unique
+  stripeAccountId  String @unique
+  onboardingStatus String @default("pending") // pending, onboarding, active, restricted
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("stripe_connected_accounts")
+}
+
+model Payout {
+  id               String   @id @default(cuid())
+  userId           String
+  amount           Int      // cents
+  currency         String   @default("usd")
+  status           String   @default("pending") // pending, processing, completed, failed
+  stripeTransferId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("payouts")
+}
+
+model WebhookLog {
+  id             String    @id @default(cuid())
+  provider       String    @default("stripe")
+  eventType      String
+  payload        Json
+  idempotencyKey String    @unique
+  processedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([idempotencyKey])
+  @@index([eventType])
+  @@map("webhook_logs")
+}

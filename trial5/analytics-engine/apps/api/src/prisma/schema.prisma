@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id           String   @id @default(uuid())
+  name         String
+  apiKey       String   @unique
+  primaryColor String   @default("#3B82F6")
+  fontFamily   String   @default("Inter")
+  logoUrl      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  dashboards  Dashboard[]
+  dataSources DataSource[]
+}
+
+model Dashboard {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  layout      Json     @default("{}")
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  widgets     Widget[]
+  embedConfig EmbedConfig?
+}
+
+model Widget {
+  id          String     @id @default(uuid())
+  dashboardId String
+  type        WidgetType
+  config      Json       @default("{}")
+  positionX   Int        @default(0)
+  positionY   Int        @default(0)
+  width       Int        @default(1)
+  height      Int        @default(1)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+}
+
+enum WidgetType {
+  LINE_CHART
+  BAR_CHART
+  PIE_CHART
+  DONUT_CHART
+  AREA_CHART
+  KPI_CARD
+  TABLE
+  FUNNEL
+}
+
+model DataSource {
+  id        String         @id @default(uuid())
+  tenantId  String
+  name      String
+  type      DataSourceType
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  tenant           Tenant             @relation(fields: [tenantId], references: [id])
+  config           DataSourceConfig?
+  syncRuns         SyncRun[]
+  dataPoints       DataPoint[]
+  deadLetterEvents DeadLetterEvent[]
+}
+
+enum DataSourceType {
+  REST_API
+  POSTGRESQL
+  CSV
+  WEBHOOK
+}
+
+model DataSourceConfig {
+  id              String   @id @default(uuid())
+  dataSourceId    String   @unique
+  connectionConfig Json    @default("{}")
+  fieldMapping    Json     @default("{}")
+  transformSteps  Json     @default("[]")
+  syncSchedule    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+}
+
+model SyncRun {
+  id           String        @id @default(uuid())
+  dataSourceId String
+  status       SyncRunStatus
+  rowsIngested Int           @default(0)
+  errorLog     String?
+  startedAt    DateTime      @default(now())
+  completedAt  DateTime?
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+}
+
+enum SyncRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model DataPoint {
+  id           String   @id @default(uuid())
+  tenantId     String
+  dataSourceId String
+  timestamp    DateTime
+  dimensions   Json     @default("{}")
+  metrics      Json     @default("{}")
+  createdAt    DateTime @default(now())
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+}
+
+model EmbedConfig {
+  id             String   @id @default(uuid())
+  dashboardId    String   @unique
+  allowedOrigins String[] @default([])
+  themeOverrides Json     @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+}
+
+model QueryCache {
+  id        String   @id @default(uuid())
+  queryHash String   @unique
+  result    Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model DeadLetterEvent {
+  id           String   @id @default(uuid())
+  dataSourceId String
+  payload      Json
+  errorReason  String
+  createdAt    DateTime @default(now())
+  retriedAt    DateTime?
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+}

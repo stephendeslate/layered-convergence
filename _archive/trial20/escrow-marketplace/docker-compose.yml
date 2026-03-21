@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: escrow
+      POSTGRES_PASSWORD: escrow_pass
+      POSTGRES_DB: escrow_marketplace
+    ports:
+      - '5450:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6350:6379'
+
+volumes:
+  pgdata:

@@ -1,0 +1,230 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkOrderStatus {
+  UNASSIGNED
+  ASSIGNED
+  EN_ROUTE
+  ON_SITE
+  IN_PROGRESS
+  COMPLETED
+  INVOICED
+  PAID
+}
+
+enum TechnicianStatus {
+  AVAILABLE
+  BUSY
+  OFF_DUTY
+}
+
+enum UserRole {
+  ADMIN
+  DISPATCHER
+  TECHNICIAN
+}
+
+enum NotificationType {
+  ASSIGNMENT
+  STATUS_CHANGE
+  REMINDER
+  GPS_ALERT
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(DISPATCHER)
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("users")
+}
+
+model Company {
+  id            String         @id @default(uuid())
+  name          String
+  slug          String         @unique
+  serviceArea   Json?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  users         User[]
+  customers     Customer[]
+  technicians   Technician[]
+  workOrders    WorkOrder[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@map("companies")
+}
+
+model Customer {
+  id         String      @id @default(uuid())
+  companyId  String
+  company    Company     @relation(fields: [companyId], references: [id])
+  name       String
+  email      String?
+  phone      String?
+  address    String
+  lat        Float?
+  lng        Float?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  workOrders WorkOrder[]
+
+  @@index([companyId])
+  @@map("customers")
+}
+
+model Technician {
+  id          String           @id @default(uuid())
+  companyId   String
+  company     Company          @relation(fields: [companyId], references: [id])
+  name        String
+  phone       String?
+  skills      String[]
+  status      TechnicianStatus @default(AVAILABLE)
+  currentLat  Float?
+  currentLng  Float?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  workOrders  WorkOrder[]
+  assignments Assignment[]
+  gpsEvents   GpsEvent[]
+
+  @@index([companyId])
+  @@map("technicians")
+}
+
+model WorkOrder {
+  id            String                   @id @default(uuid())
+  companyId     String
+  company       Company                  @relation(fields: [companyId], references: [id])
+  customerId    String
+  customer      Customer                 @relation(fields: [customerId], references: [id])
+  technicianId  String?
+  technician    Technician?              @relation(fields: [technicianId], references: [id])
+  title         String
+  description   String?
+  priority      Int                      @default(3)
+  status        WorkOrderStatus          @default(UNASSIGNED)
+  scheduledAt   DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  statusHistory WorkOrderStatusHistory[]
+  assignments   Assignment[]
+  parts         Part[]
+
+  @@index([companyId])
+  @@index([technicianId])
+  @@index([customerId])
+  @@index([status])
+  @@map("work_orders")
+}
+
+model WorkOrderStatusHistory {
+  id          String          @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder       @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  fromStatus  WorkOrderStatus
+  toStatus    WorkOrderStatus
+  note        String?
+  changedBy   String?
+  createdAt   DateTime        @default(now())
+
+  @@index([workOrderId])
+  @@map("work_order_status_history")
+}
+
+model Assignment {
+  id           String     @id @default(uuid())
+  workOrderId  String
+  workOrder    WorkOrder  @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id])
+  assignedAt   DateTime   @default(now())
+  unassignedAt DateTime?
+  active       Boolean    @default(true)
+  note         String?
+
+  @@index([workOrderId])
+  @@index([technicianId])
+  @@index([active])
+  @@map("assignments")
+}
+
+model Part {
+  id          String    @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  name        String
+  partNumber  String?
+  quantity    Int       @default(1)
+  unitCost    Float?
+  installed   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workOrderId])
+  @@map("parts")
+}
+
+model GpsEvent {
+  id           String     @id @default(uuid())
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id])
+  lat          Float
+  lng          Float
+  accuracy     Float?
+  timestamp    DateTime   @default(now())
+
+  @@index([technicianId])
+  @@index([timestamp])
+  @@map("gps_events")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  companyId String
+  company   Company          @relation(fields: [companyId], references: [id])
+  type      NotificationType
+  title     String
+  message   String
+  userId    String?
+  read      Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  @@index([companyId])
+  @@index([userId])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+  entityType String
+  entityId   String
+  action     String
+  changes    Json?
+  performedBy String?
+  createdAt  DateTime @default(now())
+
+  @@index([companyId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}

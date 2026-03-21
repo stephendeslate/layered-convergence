@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  BUYER
+  PROVIDER
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  buyerTransactions    Transaction[]          @relation("BuyerTransactions")
+  providerTransactions Transaction[]          @relation("ProviderTransactions")
+  stripeAccount        StripeConnectedAccount?
+  payouts              Payout[]
+  raisedDisputes       Dispute[]
+}
+
+enum TransactionStatus {
+  PENDING_PAYMENT
+  HELD
+  RELEASED
+  PAID_OUT
+  DISPUTED
+  RESOLVED_BUYER
+  RESOLVED_PROVIDER
+  REFUNDED
+  EXPIRED
+}
+
+model Transaction {
+  id             String            @id @default(uuid())
+  buyerId        String
+  providerId     String
+  amount         Int
+  currency       String            @default("usd")
+  status         TransactionStatus @default(PENDING_PAYMENT)
+  holdUntil      DateTime?
+  platformFeeRate Float            @default(0.05)
+  platformFee    Int               @default(0)
+  description    String?
+  stripePaymentIntentId String?    @unique
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  buyer          User                      @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  provider       User                      @relation("ProviderTransactions", fields: [providerId], references: [id])
+  stateHistory   TransactionStateHistory[]
+  dispute        Dispute?
+  payout         Payout?
+}
+
+model TransactionStateHistory {
+  id            String            @id @default(uuid())
+  transactionId String
+  fromStatus    TransactionStatus
+  toStatus      TransactionStatus
+  reason        String?
+  createdAt     DateTime          @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+enum DisputeStatus {
+  OPEN
+  EVIDENCE_SUBMITTED
+  UNDER_REVIEW
+  RESOLVED_BUYER
+  RESOLVED_PROVIDER
+  ESCALATED
+}
+
+model Dispute {
+  id            String        @id @default(uuid())
+  transactionId String        @unique
+  raisedById    String
+  reason        String
+  evidence      Json?
+  resolution    String?
+  status        DisputeStatus @default(OPEN)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  raisedBy    User        @relation(fields: [raisedById], references: [id])
+}
+
+enum OnboardingStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETE
+  RESTRICTED
+}
+
+model StripeConnectedAccount {
+  id               String           @id @default(uuid())
+  userId           String           @unique
+  stripeAccountId  String           @unique
+  onboardingStatus OnboardingStatus @default(PENDING)
+  payoutsEnabled   Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Payout {
+  id               String       @id @default(uuid())
+  userId           String
+  transactionId    String       @unique
+  amount           Int
+  stripeTransferId String?
+  status           PayoutStatus @default(PENDING)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id])
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model WebhookLog {
+  id             String   @id @default(uuid())
+  provider       String   @default("stripe")
+  eventType      String
+  eventId        String   @unique
+  payload        Json
+  processedAt    DateTime?
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+}

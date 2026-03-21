@@ -1,0 +1,209 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkOrderStatus {
+  UNASSIGNED
+  ASSIGNED
+  EN_ROUTE
+  ON_SITE
+  IN_PROGRESS
+  COMPLETED
+  INVOICED
+  PAID
+}
+
+enum TechnicianStatus {
+  AVAILABLE
+  BUSY
+  OFF_DUTY
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  VOID
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum Role {
+  ADMIN
+  DISPATCHER
+  TECHNICIAN
+  CUSTOMER
+}
+
+model Company {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  serviceArea Json?
+  branding    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  technicians Technician[]
+  customers   Customer[]
+  workOrders  WorkOrder[]
+  routes      Route[]
+
+  @@map("companies")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  companyId String
+  email     String   @unique
+  name      String
+  role      Role     @default(DISPATCHER)
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("users")
+}
+
+model Technician {
+  id         String           @id @default(uuid())
+  companyId  String
+  name       String
+  email      String           @unique
+  phone      String?
+  skills     String[]
+  currentLat Float?
+  currentLng Float?
+  status     TechnicianStatus @default(AVAILABLE)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  company    Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workOrders WorkOrder[]
+  routes     Route[]
+  gpsEvents  GpsEvent[]
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@map("technicians")
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  email     String?
+  phone     String?
+  address   String
+  lat       Float?
+  lng       Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workOrders WorkOrder[]
+
+  @@index([companyId])
+  @@map("customers")
+}
+
+model WorkOrder {
+  id           String          @id @default(uuid())
+  companyId    String
+  customerId   String
+  technicianId String?
+  title        String
+  description  String?
+  priority     Priority        @default(MEDIUM)
+  status       WorkOrderStatus @default(UNASSIGNED)
+  scheduledAt  DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  company       Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer      Customer                 @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  technician    Technician?              @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+  statusHistory WorkOrderStatusHistory[]
+  invoice       Invoice?
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([technicianId])
+  @@map("work_orders")
+}
+
+model WorkOrderStatusHistory {
+  id          String          @id @default(uuid())
+  workOrderId String
+  fromStatus  WorkOrderStatus
+  toStatus    WorkOrderStatus
+  note        String?
+  changedAt   DateTime        @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([workOrderId])
+  @@map("work_order_status_history")
+}
+
+model Route {
+  id                String   @id @default(uuid())
+  technicianId      String
+  companyId         String
+  date              DateTime @db.Date
+  waypoints         Json
+  optimizedOrder    Int[]
+  estimatedDuration Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  technician Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([technicianId])
+  @@index([companyId])
+  @@map("routes")
+}
+
+model GpsEvent {
+  id           String   @id @default(uuid())
+  technicianId String
+  lat          Float
+  lng          Float
+  recordedAt   DateTime @default(now())
+
+  technician Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@index([technicianId])
+  @@map("gps_events")
+}
+
+model Invoice {
+  id                    String        @id @default(uuid())
+  workOrderId           String        @unique
+  amount                Float
+  status                InvoiceStatus @default(DRAFT)
+  stripePaymentIntentId String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("invoices")
+}

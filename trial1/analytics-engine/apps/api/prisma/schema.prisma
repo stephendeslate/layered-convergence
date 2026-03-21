@@ -1,0 +1,472 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum ConnectorType {
+  REST_API
+  POSTGRESQL
+  CSV
+  WEBHOOK
+}
+
+enum SyncStatus {
+  IDLE
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum SyncSchedule {
+  MANUAL
+  EVERY_15_MIN
+  HOURLY
+  DAILY
+  WEEKLY
+}
+
+enum DashboardStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum WidgetType {
+  LINE
+  BAR
+  PIE_DONUT
+  AREA
+  KPI_CARD
+  TABLE
+  FUNNEL
+}
+
+enum AggregationFunction {
+  SUM
+  AVG
+  COUNT
+  MIN
+  MAX
+}
+
+enum FieldType {
+  STRING
+  NUMBER
+  DATE
+  BOOLEAN
+}
+
+enum FieldRole {
+  DIMENSION
+  METRIC
+}
+
+enum SubscriptionTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum AuditAction {
+  TENANT_CREATED
+  TENANT_UPDATED
+  TENANT_DELETED
+  DATASOURCE_CREATED
+  DATASOURCE_UPDATED
+  DATASOURCE_DELETED
+  DATASOURCE_TEST_CONNECTION
+  DASHBOARD_CREATED
+  DASHBOARD_UPDATED
+  DASHBOARD_PUBLISHED
+  DASHBOARD_ARCHIVED
+  DASHBOARD_REVERTED_TO_DRAFT
+  DASHBOARD_DELETED
+  WIDGET_CREATED
+  WIDGET_UPDATED
+  WIDGET_DELETED
+  SYNC_STARTED
+  SYNC_COMPLETED
+  SYNC_FAILED
+  SYNC_PAUSED
+  SYNC_RESUMED
+  EMBED_CONFIG_UPDATED
+  API_KEY_CREATED
+  API_KEY_REVOKED
+  THEME_UPDATED
+  TIER_UPGRADED
+  TIER_DOWNGRADED
+  DATA_EXPORTED
+  ACCOUNT_DELETION_REQUESTED
+}
+
+enum GroupingPeriod {
+  NONE
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum DateRangePreset {
+  LAST_7_DAYS
+  LAST_30_DAYS
+  LAST_90_DAYS
+  CUSTOM
+  ALL_TIME
+}
+
+enum ApiKeyType {
+  ADMIN
+  EMBED
+}
+
+// ─────────────────────────────────────────────
+// Tenant & Auth
+// ─────────────────────────────────────────────
+
+model Tenant {
+  id               String           @id @default(cuid())
+  name             String
+  email            String           @unique
+  passwordHash     String
+  emailVerified    Boolean          @default(false)
+  emailVerifyToken String?
+  region           String           @default("us-east-1")
+  tier             SubscriptionTier @default(FREE)
+  stripeCustomerId String?          @unique
+  syncPausedGlobal Boolean          @default(false)
+
+  // Theme settings
+  primaryColor    String @default("#3B82F6")
+  secondaryColor  String @default("#6366F1")
+  backgroundColor String @default("#FFFFFF")
+  textColor       String @default("#1F2937")
+  fontFamily      String @default("Inter")
+  cornerRadius    Int    @default(8)
+  logoUrl         String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  dataSources  DataSource[]
+  dashboards   Dashboard[]
+  apiKeys      ApiKey[]
+  auditLogs    AuditLog[]
+  embedConfigs EmbedConfig[]
+
+  @@map("tenants")
+}
+
+model ApiKey {
+  id         String     @id @default(cuid())
+  tenantId   String
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type       ApiKeyType
+  keyHash    String     @unique
+  keyPrefix  String
+  name       String     @default("Default")
+  isActive   Boolean    @default(true)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime   @default(now())
+  revokedAt  DateTime?
+
+  @@index([tenantId])
+  @@index([keyHash])
+  @@map("api_keys")
+}
+
+// ─────────────────────────────────────────────
+// Data Sources & Connectors
+// ─────────────────────────────────────────────
+
+model DataSource {
+  id               String        @id @default(cuid())
+  tenantId         String
+  tenant           Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name             String
+  connectorType    ConnectorType
+  syncSchedule     SyncSchedule  @default(MANUAL)
+  syncPaused       Boolean       @default(false)
+  consecutiveFails Int           @default(0)
+  lastSyncAt       DateTime?
+  nextSyncAt       DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // Relations
+  config        DataSourceConfig?
+  fieldMappings FieldMapping[]
+  syncRuns      SyncRun[]
+  dataPoints    DataPoint[]
+  widgets       Widget[]
+
+  @@index([tenantId])
+  @@index([nextSyncAt])
+  @@map("data_sources")
+}
+
+model DataSourceConfig {
+  id           String     @id @default(cuid())
+  dataSourceId String     @unique
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+
+  // Encrypted JSON blob containing connector-specific config
+  configEncrypted Bytes
+  configIv        Bytes
+  configTag       Bytes
+
+  // Transform steps as JSON array
+  transforms Json @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("data_source_configs")
+}
+
+model FieldMapping {
+  id           String     @id @default(cuid())
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  sourceField  String
+  targetField  String
+  fieldType    FieldType
+  fieldRole    FieldRole
+  isRequired   Boolean    @default(false)
+  isPii        Boolean    @default(false)
+  sortOrder    Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([dataSourceId, targetField])
+  @@index([dataSourceId])
+  @@map("field_mappings")
+}
+
+// ─────────────────────────────────────────────
+// Sync & Ingestion
+// ─────────────────────────────────────────────
+
+model SyncRun {
+  id           String     @id @default(cuid())
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  tenantId     String
+  status       SyncStatus @default(IDLE)
+  rowsSynced   Int        @default(0)
+  rowsFailed   Int        @default(0)
+  errorMessage String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  archivedAt   DateTime?
+  createdAt    DateTime   @default(now())
+
+  // Relations
+  deadLetterEvents DeadLetterEvent[]
+
+  @@index([dataSourceId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("sync_runs")
+}
+
+model DeadLetterEvent {
+  id           String   @id @default(cuid())
+  syncRunId    String?
+  syncRun      SyncRun? @relation(fields: [syncRunId], references: [id], onDelete: SetNull)
+  tenantId     String
+  dataSourceId String
+  payload      Json
+  errorMessage String
+  errorStack   String?
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([syncRunId])
+  @@index([createdAt])
+  @@map("dead_letter_events")
+}
+
+// ─────────────────────────────────────────────
+// Data Storage
+// ─────────────────────────────────────────────
+
+model DataPoint {
+  id           String     @id @default(cuid())
+  tenantId     String
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+
+  dimensions Json
+  metrics    Json
+  timestamp  DateTime
+
+  sourceHash String
+
+  createdAt DateTime @default(now())
+
+  @@unique([dataSourceId, sourceHash])
+  @@index([tenantId])
+  @@index([dataSourceId])
+  @@index([timestamp])
+  @@index([tenantId, dataSourceId, timestamp])
+  @@map("data_points")
+}
+
+model AggregatedDataPoint {
+  id           String         @id @default(cuid())
+  tenantId     String
+  dataSourceId String
+  period       GroupingPeriod
+  periodStart  DateTime
+  dimensionKey String
+  metricName   String
+  sumValue     Float          @default(0)
+  avgValue     Float          @default(0)
+  countValue   Int            @default(0)
+  minValue     Float          @default(0)
+  maxValue     Float          @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([tenantId, dataSourceId, period, periodStart, dimensionKey, metricName])
+  @@index([tenantId, dataSourceId])
+  @@index([periodStart])
+  @@index([tenantId, dataSourceId, period, periodStart])
+  @@map("aggregated_data_points")
+}
+
+// ─────────────────────────────────────────────
+// Dashboards & Widgets
+// ─────────────────────────────────────────────
+
+model Dashboard {
+  id          String          @id @default(cuid())
+  tenantId    String
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  status      DashboardStatus @default(DRAFT)
+  gridColumns Int             @default(12)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Relations
+  widgets     Widget[]
+  embedConfig EmbedConfig?
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("dashboards")
+}
+
+model Widget {
+  id           String     @id @default(cuid())
+  dashboardId  String
+  dashboard    Dashboard  @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  tenantId     String
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+
+  type     WidgetType
+  title    String
+  subtitle String?
+
+  gridColumnStart Int @default(1)
+  gridColumnSpan  Int @default(6)
+  gridRowStart    Int @default(1)
+  gridRowSpan     Int @default(1)
+
+  dimensionField  String
+  metricFields    Json
+  dateRangePreset DateRangePreset @default(LAST_30_DAYS)
+  dateRangeStart  DateTime?
+  dateRangeEnd    DateTime?
+  groupingPeriod  GroupingPeriod  @default(DAILY)
+
+  typeConfig Json @default("{}")
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dashboardId])
+  @@index([tenantId])
+  @@index([dataSourceId])
+  @@map("widgets")
+}
+
+// ─────────────────────────────────────────────
+// Embed
+// ─────────────────────────────────────────────
+
+model EmbedConfig {
+  id          String    @id @default(cuid())
+  dashboardId String    @unique
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  allowedOrigins String[]
+  isEnabled      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("embed_configs")
+}
+
+// ─────────────────────────────────────────────
+// Caching
+// ─────────────────────────────────────────────
+
+model QueryCache {
+  id         String   @id @default(cuid())
+  tenantId   String
+  widgetId   String
+  queryHash  String
+  resultData Json
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@unique([widgetId, queryHash])
+  @@index([tenantId])
+  @@index([expiresAt])
+  @@map("query_cache")
+}
+
+// ─────────────────────────────────────────────
+// Audit
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id           String      @id @default(cuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  action       AuditAction
+  resourceType String
+  resourceId   String?
+  metadata     Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime    @default(now())
+
+  @@index([tenantId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
+}

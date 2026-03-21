@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id           String   @id @default(uuid())
+  name         String
+  apiKey       String   @unique
+  primaryColor String   @default("#3B82F6")
+  fontFamily   String   @default("Inter")
+  logoUrl      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  dashboards  Dashboard[]
+  dataSources DataSource[]
+  embedConfigs EmbedConfig[]
+}
+
+model Dashboard {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  layout      Json     @default("[]")
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  widgets     Widget[]
+  embedConfigs EmbedConfig[]
+
+  @@index([tenantId])
+}
+
+model Widget {
+  id          String   @id @default(uuid())
+  dashboardId String
+  type        WidgetType
+  config      Json
+  position    Int      @default(0)
+  width       Int      @default(6)
+  height      Int      @default(4)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@index([dashboardId])
+}
+
+enum WidgetType {
+  LINE_CHART
+  BAR_CHART
+  PIE_CHART
+  DONUT_CHART
+  AREA_CHART
+  KPI_CARD
+  TABLE
+  FUNNEL
+}
+
+model DataSource {
+  id        String         @id @default(uuid())
+  tenantId  String
+  name      String
+  type      DataSourceType
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  tenant    Tenant         @relation(fields: [tenantId], references: [id])
+  config    DataSourceConfig?
+  syncRuns  SyncRun[]
+  dataPoints DataPoint[]
+  deadLetterEvents DeadLetterEvent[]
+
+  @@index([tenantId])
+}
+
+enum DataSourceType {
+  REST_API
+  POSTGRESQL
+  CSV
+  WEBHOOK
+}
+
+model DataSourceConfig {
+  id              String   @id @default(uuid())
+  dataSourceId    String   @unique
+  connectionConfig Json
+  fieldMapping    Json     @default("[]")
+  transformSteps  Json     @default("[]")
+  syncSchedule    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  dataSource      DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+}
+
+model SyncRun {
+  id           String        @id @default(uuid())
+  dataSourceId String
+  status       SyncRunStatus
+  rowsIngested Int           @default(0)
+  errorLog     String?
+  startedAt    DateTime      @default(now())
+  completedAt  DateTime?
+
+  dataSource   DataSource    @relation(fields: [dataSourceId], references: [id])
+
+  @@index([dataSourceId])
+}
+
+enum SyncRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model DataPoint {
+  id           String   @id @default(uuid())
+  dataSourceId String
+  tenantId     String
+  timestamp    DateTime
+  dimensions   Json
+  metrics      Json
+  createdAt    DateTime @default(now())
+
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@index([dataSourceId])
+  @@index([tenantId, timestamp])
+}
+
+model EmbedConfig {
+  id             String   @id @default(uuid())
+  dashboardId    String
+  tenantId       String
+  allowedOrigins String[] @default([])
+  themeOverrides Json     @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  dashboard      Dashboard @relation(fields: [dashboardId], references: [id])
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@index([dashboardId])
+}
+
+model QueryCache {
+  id        String   @id @default(uuid())
+  queryHash String   @unique
+  result    Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model DeadLetterEvent {
+  id           String   @id @default(uuid())
+  dataSourceId String
+  payload      Json
+  errorReason  String
+  createdAt    DateTime @default(now())
+  retriedAt    DateTime?
+
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@index([dataSourceId])
+}

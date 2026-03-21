@@ -1,0 +1,184 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PipelineStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum SyncStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum DataSourceType {
+  POSTGRESQL
+  API
+  CSV
+  WEBHOOK
+}
+
+enum WidgetType {
+  LINE_CHART
+  BAR_CHART
+  PIE_CHART
+  AREA_CHART
+  KPI_CARD
+  TABLE
+  FUNNEL
+}
+
+model Tenant {
+  id           String   @id @default(uuid())
+  name         String
+  apiKey       String   @unique @map("api_key")
+  primaryColor String?  @map("primary_color")
+  fontFamily   String?  @map("font_family")
+  logoUrl      String?  @map("logo_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  dashboards  Dashboard[]
+  dataSources DataSource[]
+
+  @@map("tenants")
+}
+
+model Dashboard {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  layout      Json?
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant        @relation(fields: [tenantId], references: [id])
+  widgets     Widget[]
+  embedConfig EmbedConfig?
+
+  @@map("dashboards")
+}
+
+model Widget {
+  id          String     @id @default(uuid())
+  dashboardId String     @map("dashboard_id")
+  type        WidgetType
+  config      Json
+  positionX   Int        @default(0) @map("position_x")
+  positionY   Int        @default(0) @map("position_y")
+  width       Int        @default(1)
+  height      Int        @default(1)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+
+  @@map("widgets")
+}
+
+model DataSource {
+  id             String         @id @default(uuid())
+  tenantId       String         @map("tenant_id")
+  name           String
+  type           DataSourceType
+  pipelineStatus PipelineStatus @default(DRAFT) @map("pipeline_status")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  dataSourceConfig DataSourceConfig?
+  syncRuns         SyncRun[]
+  dataPoints       DataPoint[]
+  deadLetterEvents DeadLetterEvent[]
+
+  @@map("data_sources")
+}
+
+model DataSourceConfig {
+  id               String   @id @default(uuid())
+  dataSourceId     String   @unique @map("data_source_id")
+  connectionConfig Json     @map("connection_config")
+  fieldMapping     Json     @map("field_mapping")
+  transformSteps   Json?    @map("transform_steps")
+  syncSchedule     String?  @map("sync_schedule")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@map("data_source_configs")
+}
+
+model SyncRun {
+  id           String     @id @default(uuid())
+  dataSourceId String     @map("data_source_id")
+  status       SyncStatus @default(RUNNING)
+  rowsIngested Int        @default(0) @map("rows_ingested")
+  errorLog     String?    @map("error_log")
+  startedAt    DateTime   @default(now()) @map("started_at")
+  completedAt  DateTime?  @map("completed_at")
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@map("sync_runs")
+}
+
+model DataPoint {
+  id           String   @id @default(uuid())
+  dataSourceId String   @map("data_source_id")
+  timestamp    DateTime
+  dimensions   Json
+  metrics      Json
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@map("data_points")
+}
+
+model EmbedConfig {
+  id             String   @id @default(uuid())
+  dashboardId    String   @unique @map("dashboard_id")
+  allowedOrigins String[] @map("allowed_origins")
+  themeOverrides Json?    @map("theme_overrides")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+
+  @@map("embed_configs")
+}
+
+model QueryCache {
+  id        String   @id @default(uuid())
+  queryHash String   @unique @map("query_hash")
+  result    Json
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("query_cache")
+}
+
+model DeadLetterEvent {
+  id           String    @id @default(uuid())
+  dataSourceId String    @map("data_source_id")
+  payload      Json
+  errorReason  String    @map("error_reason")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  retriedAt    DateTime? @map("retried_at")
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@map("dead_letter_events")
+}

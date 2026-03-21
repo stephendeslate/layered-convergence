@@ -1,0 +1,177 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  PNPM_VERSION: "10"
+
+jobs:
+  # Stage 1: DCO Check
+  dco:
+    name: DCO Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check DCO sign-off
+        run: |
+          git log --format='%H %s' origin/main..HEAD | while read hash msg; do
+            if ! git log -1 --format='%b' "$hash" | grep -qE '^Signed-off-by: .+ <.+>'; then
+              echo "::error::Commit $hash missing DCO sign-off"
+              exit 1
+            fi
+          done
+
+  # Stage 2: Lint + Typecheck
+  lint-typecheck:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+    needs: [dco]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm --filter @cpm/api prisma:generate
+        env:
+          DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+      - name: Build shared package
+        run: pnpm --filter @cpm/shared build
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+
+  # Stage 3: Test
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: [lint-typecheck]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cpm_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm --filter @cpm/api prisma:generate
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/cpm_test"
+      - name: Run migrations
+        run: pnpm --filter @cpm/api prisma:migrate:deploy
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/cpm_test"
+      - name: Build shared package
+        run: pnpm --filter @cpm/shared build
+      - name: Run tests
+        run: pnpm test
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/cpm_test"
+          REDIS_URL: "redis://localhost:6379"
+          JWT_SECRET: "test-jwt-secret-ci"
+          STRIPE_SECRET_KEY: "sk_test_placeholder"
+          STRIPE_WEBHOOK_SECRET: "whsec_test_placeholder"
+
+  # Stage 4: E2E (only on push to main)
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cpm_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm --filter @cpm/api prisma:generate
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/cpm_e2e"
+      - name: Run migrations
+        run: pnpm --filter @cpm/api prisma:migrate:deploy
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/cpm_e2e"
+      - name: Build all
+        run: pnpm build
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/cpm_e2e"
+          REDIS_URL: "redis://localhost:6379"
+          JWT_SECRET: "test-jwt-secret-ci"
+          STRIPE_SECRET_KEY: "sk_test_placeholder"
+          STRIPE_WEBHOOK_SECRET: "whsec_test_placeholder"
+      - name: Run E2E tests
+        run: echo "E2E test suite placeholder — implement with Playwright"
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/cpm_e2e"
+          REDIS_URL: "redis://localhost:6379"

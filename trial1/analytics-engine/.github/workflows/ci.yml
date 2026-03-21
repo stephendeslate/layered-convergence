@@ -1,0 +1,182 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── Stage 1: DCO Check (PR only) ─────────────────────
+  dco-check:
+    name: DCO Check
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check DCO sign-off
+        run: |
+          commits=$(git log --format='%H %s' origin/${{ github.base_ref }}..HEAD)
+          while IFS= read -r line; do
+            hash=$(echo "$line" | cut -d' ' -f1)
+            body=$(git log -1 --format='%b' "$hash")
+            if ! echo "$body" | grep -qi "Signed-off-by:"; then
+              echo "Commit $hash is missing DCO sign-off"
+              exit 1
+            fi
+          done <<< "$commits"
+          echo "All commits have DCO sign-off"
+
+  # ─── Stage 2: Lint & Typecheck ────────────────────────
+  lint-typecheck:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter api exec prisma generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+  # ─── Stage 3: Test ────────────────────────────────────
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: analytics_engine_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/analytics_engine_test?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: test-secret
+      ENCRYPTION_KEY: test-encryption-key-32-bytes!!
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter api exec prisma generate
+
+      - name: Run migrations
+        run: pnpm --filter api exec prisma migrate deploy
+
+      - name: Run tests
+        run: pnpm test
+
+  # ─── Stage 4: E2E (PR only) ──────────────────────────
+  e2e:
+    name: E2E Tests
+    if: github.event_name == 'pull_request'
+    needs: [lint-typecheck, test]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: analytics_engine_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/analytics_engine_e2e?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: test-secret
+      ENCRYPTION_KEY: test-encryption-key-32-bytes!!
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Generate Prisma client
+        run: pnpm --filter api exec prisma generate
+
+      - name: Run migrations
+        run: pnpm --filter api exec prisma migrate deploy
+
+      - name: Build
+        run: pnpm build
+
+      - name: Run E2E tests
+        run: echo "Playwright E2E tests will be added in Phase C"

@@ -1,0 +1,109 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  BUYER
+  PROVIDER
+  ADMIN
+}
+
+enum TransactionStatus {
+  PENDING
+  FUNDED
+  DELIVERED
+  RELEASED
+  DISPUTED
+  REFUNDED
+  EXPIRED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      UserRole @default(BUYER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  buyerTransactions    Transaction[] @relation("BuyerTransactions")
+  providerTransactions Transaction[] @relation("ProviderTransactions")
+  disputes             Dispute[]
+  payouts              Payout[]
+  stripeAccount        StripeConnectedAccount?
+}
+
+model Transaction {
+  id         String            @id @default(uuid())
+  amount     Decimal           @db.Decimal(12, 2)
+  status     TransactionStatus @default(PENDING)
+  buyerId    String
+  providerId String
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  buyer    User @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  provider User @relation("ProviderTransactions", fields: [providerId], references: [id])
+
+  stateHistory TransactionStateHistory[]
+  disputes     Dispute[]
+  payouts      Payout[]
+}
+
+model TransactionStateHistory {
+  id            String            @id @default(uuid())
+  transactionId String
+  fromStatus    TransactionStatus
+  toStatus      TransactionStatus
+  changedAt     DateTime          @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model Dispute {
+  id            String   @id @default(uuid())
+  transactionId String
+  userId        String
+  reason        String
+  resolved      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+}
+
+model Payout {
+  id            String   @id @default(uuid())
+  transactionId String
+  userId        String
+  amount        Decimal  @db.Decimal(12, 2)
+  createdAt     DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+}
+
+model WebhookLog {
+  id             String   @id @default(uuid())
+  idempotencyKey String   @unique
+  event          String
+  payload        Json
+  processedAt    DateTime @default(now())
+}
+
+model StripeConnectedAccount {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  stripeAccountId  String   @unique
+  onboardingComplete Boolean @default(false)
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}

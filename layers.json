@@ -1,11 +1,118 @@
 [
-  {"layerNum": 0, "name": "Backend API", "domain": "Backend", "trialRange": [1, 10], "status": "complete", "failureModesResolved": 34, "description": "v1.0-v11.0, 34 failure modes, converged"},
-  {"layerNum": 1, "name": "Integration Testing", "domain": "Testing", "trialRange": [11, 14], "status": "active", "failureModesResolved": 0, "description": "Extend v11.0 with required E2E + real DB + real Redis"},
-  {"layerNum": 2, "name": "Frontend", "domain": "UI", "trialRange": [15, 22], "status": "pending", "failureModesResolved": 0, "description": "Next.js 15 + shadcn/ui, component testing, accessibility"},
-  {"layerNum": 3, "name": "Specifications", "domain": "Specs", "trialRange": [23, 27], "status": "pending", "failureModesResolved": 0, "description": "Spec-to-code traceability, VERIFY tags, bidirectional audit"},
-  {"layerNum": 4, "name": "Infrastructure", "domain": "Infra", "trialRange": [28, 32], "status": "pending", "failureModesResolved": 0, "description": "Docker, CI/CD, migrations, seed scripts, env verification"},
-  {"layerNum": 5, "name": "Monorepo", "domain": "Monorepo", "trialRange": [33, 36], "status": "pending", "failureModesResolved": 0, "description": "Turborepo + pnpm, shared types, cross-package coordination"},
-  {"layerNum": 6, "name": "Security (Broad)", "domain": "Security", "trialRange": [37, 41], "status": "pending", "failureModesResolved": 0, "description": "OWASP Top 10, rate limiting, CORS/CSP, dependency audit"},
-  {"layerNum": 7, "name": "Performance", "domain": "Performance", "trialRange": [42, 45], "status": "pending", "failureModesResolved": 0, "description": "Benchmarking, load testing, N+1 detection"},
-  {"layerNum": 8, "name": "Monitoring", "domain": "Monitoring", "trialRange": [46, 49], "status": "pending", "failureModesResolved": 0, "description": "Structured logging, health checks, error tracking, APM"}
+  {
+    "layerNum": 0,
+    "name": "Backend API",
+    "domain": "Backend",
+    "status": "complete",
+    "failureModesResolved": 34,
+    "trials": {"completed": [1,2,3,4,5,6,7,8,9,10], "minTrials": 10, "maxTrials": 10},
+    "description": "v1.0-v11.0, 34 failure modes, converged"
+  },
+  {
+    "layerNum": 1,
+    "name": "Integration Testing",
+    "domain": "Testing",
+    "status": "complete",
+    "failureModesResolved": 4,
+    "trials": {"completed": [11,12,13,14], "minTrials": 3, "maxTrials": 5},
+    "requiredArtifacts": ["docker-compose.test.yml", "vitest.integration.config.ts", "test/integration/", "real PostgreSQL connection", "real Redis connection"],
+    "verificationMechanisms": ["no vi.mock in integration tests", "docker-compose health checks", "test isolation via transactions"],
+    "description": "Real DB + Redis E2E integration testing, 4 failure modes resolved, converged at Trial 14"
+  },
+  {
+    "layerNum": 2,
+    "name": "Frontend",
+    "domain": "UI",
+    "status": "pending",
+    "failureModesResolved": 0,
+    "trials": {"completed": [], "minTrials": 5, "maxTrials": 8},
+    "requiredArtifacts": ["apps/web/ or frontend/", ">=5 .tsx page components", "next in package.json", "component test files", "axe-core config"],
+    "newScoringDimensions": ["UI", "AX"],
+    "verificationMechanisms": ["component-wiring check", "no hardcoded mock data", "axe-core gate", "type-safety audit", "component tests for interactive elements", "Next.js App Router conventions", "Tailwind 4 usage"],
+    "description": "Next.js 15 + shadcn/ui + Tailwind CSS 4, component testing, accessibility"
+  },
+  {
+    "layerNum": 3,
+    "name": "Specifications",
+    "domain": "Specs",
+    "status": "pending",
+    "failureModesResolved": 0,
+    "trials": {"completed": [], "minTrials": 3, "maxTrials": 5},
+    "requiredArtifacts": ["SPEC-INDEX.md", "specs/ directory with 7-doc hierarchy", "VERIFY tags in specs", "bidirectional traceability links"],
+    "newScoringDimensions": ["ST"],
+    "verificationMechanisms": ["VERIFY tag coverage", "spec-to-code traceability audit", "orphan spec detection", "bidirectional link integrity"],
+    "description": "7-doc spec hierarchy, VERIFY tags, SPEC-INDEX.md, bidirectional audit"
+  },
+  {
+    "layerNum": 4,
+    "name": "Infrastructure",
+    "domain": "Infra",
+    "status": "pending",
+    "failureModesResolved": 0,
+    "trials": {"completed": [], "minTrials": 3, "maxTrials": 5},
+    "requiredArtifacts": ["Dockerfile", ".github/workflows/", "prisma/migrations/", "prisma/seed.ts", ".env.example"],
+    "newScoringDimensions": ["II"],
+    "verificationMechanisms": ["Dockerfile builds successfully", "CI pipeline has lint+test+build stages", "migrations are idempotent", "seed script populates test data", "env verification script"],
+    "description": "Docker, CI/CD, Prisma migrations, seed scripts, env verification"
+  },
+  {
+    "layerNum": 5,
+    "name": "Monorepo",
+    "domain": "Monorepo",
+    "status": "pending",
+    "failureModesResolved": 0,
+    "trials": {"completed": [], "minTrials": 3, "maxTrials": 4},
+    "requiredArtifacts": ["turbo.json", "pnpm-workspace.yaml", "packages/shared/", "cross-package type imports"],
+    "newScoringDimensions": [],
+    "verificationMechanisms": ["turbo build passes", "shared package exports typed correctly", "no circular dependencies", "workspace dependency resolution"],
+    "description": "Turborepo 2 + pnpm workspaces, packages/shared, cross-package types"
+  },
+  {
+    "layerNum": 6,
+    "name": "Security",
+    "domain": "Security",
+    "status": "pending",
+    "failureModesResolved": 0,
+    "trials": {"completed": [], "minTrials": 3, "maxTrials": 5},
+    "requiredArtifacts": ["helmet configuration", "rate-limiter setup", "CORS/CSP configuration", "npm audit clean", "input validation schemas"],
+    "newScoringDimensions": [],
+    "verificationMechanisms": ["OWASP Top 10 checklist", "rate limiting on auth endpoints", "CSP headers present", "no eval() or innerHTML", "Zod validation on all inputs", "npm audit --audit-level=high"],
+    "description": "OWASP Top 10, rate limiting, CORS/CSP, Helmet.js, dependency audit"
+  },
+  {
+    "layerNum": 7,
+    "name": "Performance",
+    "domain": "Performance",
+    "status": "pending",
+    "failureModesResolved": 0,
+    "trials": {"completed": [], "minTrials": 3, "maxTrials": 4},
+    "requiredArtifacts": ["benchmark files", "response time budgets in config", "query logging configuration"],
+    "newScoringDimensions": ["PF"],
+    "verificationMechanisms": ["benchmark suite runs", "N+1 query detection", "response time budget enforcement", "Prisma query logging enabled", "no unbounded queries"],
+    "description": "Benchmarking, response time budgets, N+1 detection, load testing"
+  },
+  {
+    "layerNum": 8,
+    "name": "Monitoring",
+    "domain": "Monitoring",
+    "status": "pending",
+    "failureModesResolved": 0,
+    "trials": {"completed": [], "minTrials": 3, "maxTrials": 4},
+    "requiredArtifacts": ["Pino logger configuration", "/health endpoint", "Sentry configuration", "correlation ID middleware"],
+    "newScoringDimensions": [],
+    "verificationMechanisms": ["structured JSON logging", "health endpoint returns version+uptime", "error tracking integration", "correlation IDs propagated across requests", "no console.log in production code"],
+    "description": "Pino structured logging, /health endpoints, Sentry, correlation IDs"
+  },
+  {
+    "layerNum": 9,
+    "name": "Cross-Layer Integration",
+    "domain": "Integration",
+    "status": "pending",
+    "failureModesResolved": 0,
+    "trials": {"completed": [], "minTrials": 2, "maxTrials": 3},
+    "requiredArtifacts": ["all L1-L8 artifacts present simultaneously", "cross-layer interaction tests", "full-stack smoke test"],
+    "newScoringDimensions": [],
+    "verificationMechanisms": ["all prior layer checks pass cumulatively", "cross-layer interaction verification", "full-stack build succeeds", "no layer-specific regressions", "independent audit delta <= 1.0"],
+    "description": "Final integration: all layers active simultaneously, cumulative verification, independent audit"
+  }
 ]

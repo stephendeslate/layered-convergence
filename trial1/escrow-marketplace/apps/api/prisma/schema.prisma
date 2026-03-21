@@ -1,0 +1,280 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto]
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  BUYER
+  PROVIDER
+  ADMIN
+}
+
+enum TransactionStatus {
+  CREATED
+  PAYMENT_HELD
+  DELIVERED
+  RELEASED
+  PAID_OUT
+  DISPUTED
+  REFUNDED
+  EXPIRED
+  CANCELLED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_RELEASED
+  RESOLVED_REFUNDED
+  ESCALATED
+  CLOSED
+}
+
+enum DisputeReason {
+  NOT_DELIVERED
+  NOT_AS_DESCRIBED
+  QUALITY_ISSUE
+  LATE_DELIVERY
+  COMMUNICATION_ISSUE
+  OTHER
+}
+
+enum PayoutStatus {
+  PENDING
+  IN_TRANSIT
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum OnboardingStatus {
+  NOT_STARTED
+  PENDING
+  COMPLETE
+  RESTRICTED
+}
+
+enum WebhookStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+  SKIPPED
+}
+
+enum AuditAction {
+  TRANSACTION_CREATED
+  PAYMENT_HELD
+  DELIVERY_MARKED
+  DELIVERY_CONFIRMED
+  FUNDS_RELEASED
+  FUNDS_REFUNDED
+  PAYOUT_INITIATED
+  PAYOUT_COMPLETED
+  PAYOUT_FAILED
+  DISPUTE_OPENED
+  DISPUTE_EVIDENCE_ADDED
+  DISPUTE_RESOLVED
+  DISPUTE_ESCALATED
+  HOLD_EXPIRED
+  TRANSACTION_CANCELLED
+  AUTO_RELEASE_TRIGGERED
+  PROVIDER_ONBOARDED
+  PROVIDER_RESTRICTED
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  displayName     String
+  role            UserRole
+  emailVerified   Boolean   @default(false)
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  connectedAccount     StripeConnectedAccount?
+  buyerTransactions    Transaction[]              @relation("BuyerTransactions")
+  providerTransactions Transaction[]              @relation("ProviderTransactions")
+  disputesFiled        Dispute[]                  @relation("DisputesFiled")
+  evidenceSubmitted    DisputeEvidence[]
+  auditEntries         TransactionStateHistory[]  @relation("AuditActor")
+
+  @@index([role])
+  @@map("users")
+}
+
+model StripeConnectedAccount {
+  id               String           @id @default(cuid())
+  userId           String           @unique
+  stripeAccountId  String           @unique
+  onboardingStatus OnboardingStatus @default(NOT_STARTED)
+  chargesEnabled   Boolean          @default(false)
+  payoutsEnabled   Boolean          @default(false)
+  detailsSubmitted Boolean          @default(false)
+  onboardingUrl    String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  user    User     @relation(fields: [userId], references: [id])
+  payouts Payout[]
+
+  @@map("stripe_connected_accounts")
+}
+
+model Transaction {
+  id          String            @id @default(cuid())
+  buyerId     String
+  providerId  String
+  amount      Int // cents USD
+  platformFee Int // cents USD
+  providerAmount Int // cents USD (amount - platformFee)
+  currency    String            @default("usd")
+  description String
+  status      TransactionStatus @default(CREATED)
+
+  // Stripe references
+  stripePaymentIntentId String? @unique
+  stripeChargeId        String?
+  stripeTransferId      String?
+  stripeRefundId        String?
+
+  // Timestamps
+  paymentHeldAt DateTime?
+  deliveredAt   DateTime?
+  releasedAt    DateTime?
+  paidOutAt     DateTime?
+  disputedAt    DateTime?
+  refundedAt    DateTime?
+  expiredAt     DateTime?
+  autoReleaseAt DateTime? // scheduled auto-release time
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  buyer        User                      @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  provider     User                      @relation("ProviderTransactions", fields: [providerId], references: [id])
+  dispute      Dispute?
+  stateHistory TransactionStateHistory[]
+  payout       Payout?
+
+  @@index([buyerId])
+  @@index([providerId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, createdAt]) // Admin dashboard: filter by status + sort by date
+  @@index([providerId, status]) // Provider dashboard: aggregate by status
+  @@index([releasedAt]) // Analytics: platform fee date-range queries
+  @@map("transactions")
+}
+
+model TransactionStateHistory {
+  id            String             @id @default(cuid())
+  transactionId String
+  fromStatus    TransactionStatus?
+  toStatus      TransactionStatus
+  action        AuditAction
+  actorId       String?
+  metadata      Json? // { reason, stripeEventId, etc. }
+  createdAt     DateTime           @default(now())
+
+  // Relations
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  actor       User?       @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([transactionId])
+  @@index([createdAt])
+  @@map("transaction_state_history")
+}
+
+model Dispute {
+  id             String        @id @default(cuid())
+  transactionId  String        @unique
+  filedById      String
+  reason         DisputeReason
+  description    String
+  status         DisputeStatus @default(OPEN)
+  resolvedById   String?
+  resolutionNote String?
+  resolvedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  transaction Transaction       @relation(fields: [transactionId], references: [id])
+  filedBy     User              @relation("DisputesFiled", fields: [filedById], references: [id])
+  evidence    DisputeEvidence[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("disputes")
+}
+
+model DisputeEvidence {
+  id            String   @id @default(cuid())
+  disputeId     String
+  submittedById String
+  content       String // text evidence
+  fileUrl       String? // optional file attachment URL
+  fileName      String? // original file name
+  fileSize      Int? // file size in bytes
+  createdAt     DateTime @default(now())
+
+  // Relations
+  dispute     Dispute @relation(fields: [disputeId], references: [id])
+  submittedBy User    @relation(fields: [submittedById], references: [id])
+
+  @@index([disputeId])
+  @@map("dispute_evidence")
+}
+
+model Payout {
+  id                 String       @id @default(cuid())
+  transactionId      String       @unique
+  connectedAccountId String
+  stripePayoutId     String?      @unique
+  amount             Int // cents USD
+  status             PayoutStatus @default(PENDING)
+  failureReason      String?
+  paidAt             DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  // Relations
+  transaction      Transaction            @relation(fields: [transactionId], references: [id])
+  connectedAccount StripeConnectedAccount @relation(fields: [connectedAccountId], references: [id])
+
+  @@index([connectedAccountId])
+  @@index([status])
+  @@map("payouts")
+}
+
+model WebhookLog {
+  id            String        @id @default(cuid())
+  stripeEventId String        @unique
+  eventType     String
+  status        WebhookStatus @default(RECEIVED)
+  payload       Json
+  errorMessage  String?
+  processedAt   DateTime?
+  createdAt     DateTime      @default(now())
+
+  @@index([stripeEventId])
+  @@index([eventType])
+  @@index([status])
+  @@index([createdAt]) // Admin: sort by date
+  @@map("webhook_logs")
+}

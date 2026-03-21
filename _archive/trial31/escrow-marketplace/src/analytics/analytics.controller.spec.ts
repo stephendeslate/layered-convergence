@@ -1,0 +1,43 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { AnalyticsController } from './analytics.controller';
+
+const mockAnalyticsService = {
+  getTransactionSummary: vi.fn(),
+  getDisputeMetrics: vi.fn(),
+  getRevenueBreakdown: vi.fn(),
+};
+
+describe('AnalyticsController', () => {
+  let controller: AnalyticsController;
+
+  const adminUser = { sub: 'admin-1', email: 'admin@test.com', role: 'ADMIN', tenantId: 'tenant-1' };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    controller = new AnalyticsController(mockAnalyticsService as any);
+  });
+
+  describe('getTransactionSummary', () => {
+    it('should call service with user tenantId', async () => {
+      mockAnalyticsService.getTransactionSummary.mockResolvedValue({ totalTransactions: 5 });
+      await controller.getTransactionSummary(adminUser as any);
+      expect(mockAnalyticsService.getTransactionSummary).toHaveBeenCalledWith('tenant-1');
+    });
+  });
+
+  describe('getDisputeMetrics', () => {
+    it('should call service with user tenantId', async () => {
+      mockAnalyticsService.getDisputeMetrics.mockResolvedValue({ totalDisputes: 2 });
+      await controller.getDisputeMetrics(adminUser as any);
+      expect(mockAnalyticsService.getDisputeMetrics).toHaveBeenCalledWith('tenant-1');
+    });
+  });
+
+  describe('getRevenueBreakdown', () => {
+    it('should call service with user tenantId', async () => {
+      mockAnalyticsService.getRevenueBreakdown.mockResolvedValue({ totalRevenue: 1000 });
+      await controller.getRevenueBreakdown(adminUser as any);
+      expect(mockAnalyticsService.getRevenueBreakdown).toHaveBeenCalledWith('tenant-1');
+    });
+  });
+});

@@ -1,0 +1,137 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../generated/prisma"
+  previewFeatures = ["driverAdapters"] // Required for pg adapter
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  branding    Json?
+  serviceArea String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  technicians Technician[]
+  customers   Customer[]
+  workOrders  WorkOrder[]
+}
+
+enum TechnicianStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+model Technician {
+  id         String           @id @default(uuid()) @db.Uuid
+  companyId  String           @db.Uuid
+  company    Company          @relation(fields: [companyId], references: [id])
+  name       String
+  email      String           @unique
+  skills     String[]
+  phone      String?
+  currentLat Float?
+  currentLng Float?
+  status     TechnicianStatus @default(AVAILABLE)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  workOrders WorkOrder[]
+  routes     Route[]
+}
+
+model Customer {
+  id         String      @id @default(uuid()) @db.Uuid
+  companyId  String      @db.Uuid
+  company    Company     @relation(fields: [companyId], references: [id])
+  name       String
+  address    String
+  lat        Float
+  lng        Float
+  phone      String?
+  email      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  workOrders WorkOrder[]
+}
+
+enum WorkOrderPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum WorkOrderStatus {
+  UNASSIGNED
+  ASSIGNED
+  EN_ROUTE
+  ON_SITE
+  IN_PROGRESS
+  COMPLETED
+  INVOICED
+  PAID
+}
+
+model WorkOrder {
+  id            String                  @id @default(uuid()) @db.Uuid
+  companyId     String                  @db.Uuid
+  company       Company                 @relation(fields: [companyId], references: [id])
+  customerId    String                  @db.Uuid
+  customer      Customer                @relation(fields: [customerId], references: [id])
+  technicianId  String?                 @db.Uuid
+  technician    Technician?             @relation(fields: [technicianId], references: [id])
+  priority      WorkOrderPriority       @default(MEDIUM)
+  scheduledAt   DateTime?
+  status        WorkOrderStatus         @default(UNASSIGNED)
+  description   String
+  completedAt   DateTime?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  statusHistory WorkOrderStatusHistory[]
+  invoice       Invoice?
+}
+
+model WorkOrderStatusHistory {
+  id          String    @id @default(uuid()) @db.Uuid
+  workOrderId String    @db.Uuid
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+  fromStatus  String
+  toStatus    String
+  note        String?
+  timestamp   DateTime  @default(now())
+}
+
+model Route {
+  id                String     @id @default(uuid()) @db.Uuid
+  technicianId      String     @db.Uuid
+  technician        Technician @relation(fields: [technicianId], references: [id])
+  date              DateTime
+  waypoints         Json
+  optimizedOrder    Int[]
+  estimatedDuration Int?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  CANCELLED
+}
+
+model Invoice {
+  id                    String        @id @default(uuid()) @db.Uuid
+  workOrderId           String        @unique @db.Uuid
+  workOrder             WorkOrder     @relation(fields: [workOrderId], references: [id])
+  amount                Decimal
+  status                InvoiceStatus @default(DRAFT)
+  stripePaymentIntentId String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+}

@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  primaryColor String  @default("#3B82F6")
+  logoUrl     String?
+  serviceArea Json?    // GeoJSON polygon
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  technicians Technician[]
+  customers   Customer[]
+  workOrders  WorkOrder[]
+
+  @@map("companies")
+}
+
+model Technician {
+  id         String   @id @default(cuid())
+  companyId  String
+  name       String
+  email      String
+  phone      String?
+  skills     String[] @default([])
+  currentLat Float?
+  currentLng Float?
+  status     String   @default("offline") // online, offline, on_job, en_route
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workOrders WorkOrder[]
+  routes     Route[]
+
+  @@index([companyId])
+  @@map("technicians")
+}
+
+model Customer {
+  id        String  @id @default(cuid())
+  companyId String
+  name      String
+  email     String
+  phone     String?
+  address   String
+  lat       Float
+  lng       Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workOrders WorkOrder[]
+
+  @@index([companyId])
+  @@map("customers")
+}
+
+model WorkOrder {
+  id           String    @id @default(cuid())
+  companyId    String
+  customerId   String
+  technicianId String?
+  priority     String    @default("medium") // low, medium, high, urgent
+  status       String    @default("unassigned") // unassigned, assigned, en_route, on_site, in_progress, completed, invoiced, paid
+  title        String
+  description  String?
+  scheduledAt  DateTime?
+  completedAt  DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer     Customer   @relation(fields: [customerId], references: [id])
+  technician   Technician? @relation(fields: [technicianId], references: [id])
+  statusHistory WorkOrderStatusHistory[]
+  jobPhotos    JobPhoto[]
+  invoice      Invoice?
+
+  @@index([companyId])
+  @@index([technicianId])
+  @@index([status])
+  @@map("work_orders")
+}
+
+model WorkOrderStatusHistory {
+  id          String   @id @default(cuid())
+  workOrderId String
+  fromStatus  String
+  toStatus    String
+  note        String?
+  timestamp   DateTime @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([workOrderId])
+  @@map("work_order_status_history")
+}
+
+model Route {
+  id               String   @id @default(cuid())
+  technicianId     String
+  date             DateTime @db.Date
+  waypoints        Json     @default("[]")
+  optimizedOrder   Int[]    @default([])
+  estimatedDuration Int?    // minutes
+  totalDistance     Float?  // km
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  technician Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@index([technicianId, date])
+  @@map("routes")
+}
+
+model JobPhoto {
+  id          String   @id @default(cuid())
+  workOrderId String
+  url         String
+  caption     String?
+  uploadedAt  DateTime @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([workOrderId])
+  @@map("job_photos")
+}
+
+model Invoice {
+  id                    String   @id @default(cuid())
+  workOrderId           String   @unique
+  amount                Int      // cents
+  currency              String   @default("usd")
+  status                String   @default("draft") // draft, sent, paid, overdue
+  stripePaymentIntentId String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("invoices")
+}

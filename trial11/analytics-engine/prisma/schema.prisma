@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WidgetType {
+  LINE_CHART
+  BAR_CHART
+  PIE_CHART
+  AREA_CHART
+  KPI_CARD
+  TABLE
+  FUNNEL
+}
+
+enum DataSourceType {
+  POSTGRESQL
+  API
+  CSV
+  WEBHOOK
+}
+
+enum SyncRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model Tenant {
+  id           String       @id @default(uuid())
+  name         String
+  apiKey       String       @unique
+  primaryColor String?
+  fontFamily   String?
+  logoUrl      String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  dashboards   Dashboard[]
+  dataSources  DataSource[]
+  dataPoints   DataPoint[]
+
+  @@map("tenants")
+}
+
+model Dashboard {
+  id          String       @id @default(uuid())
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  layout      Json         @default("{}")
+  isPublished Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  widgets     Widget[]
+  embedConfig EmbedConfig?
+
+  @@map("dashboards")
+}
+
+model Widget {
+  id          String     @id @default(uuid())
+  dashboardId String
+  dashboard   Dashboard  @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  type        WidgetType
+  config      Json
+  positionX   Int
+  positionY   Int
+  width       Int
+  height      Int
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("widgets")
+}
+
+model DataSource {
+  id               String            @id @default(uuid())
+  tenantId         String
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name             String
+  type             DataSourceType
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  dataSourceConfig DataSourceConfig?
+  syncRuns         SyncRun[]
+  dataPoints       DataPoint[]
+  deadLetterEvents DeadLetterEvent[]
+
+  @@map("data_sources")
+}
+
+model DataSourceConfig {
+  id               String     @id @default(uuid())
+  dataSourceId     String     @unique
+  dataSource       DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  connectionConfig Json
+  fieldMapping     Json
+  transformSteps   Json
+  syncSchedule     String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@map("data_source_configs")
+}
+
+model SyncRun {
+  id           String        @id @default(uuid())
+  dataSourceId String
+  dataSource   DataSource    @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  status       SyncRunStatus @default(RUNNING)
+  rowsIngested Int           @default(0)
+  errorLog     String?
+  startedAt    DateTime      @default(now())
+  completedAt  DateTime?
+
+  @@map("sync_runs")
+}
+
+model DataPoint {
+  id           String     @id @default(uuid())
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  timestamp    DateTime
+  dimensions   Json
+  metrics      Json
+  createdAt    DateTime   @default(now())
+
+  @@index([tenantId, timestamp])
+  @@map("data_points")
+}
+
+model EmbedConfig {
+  id             String   @id @default(uuid())
+  dashboardId    String   @unique
+  dashboard      Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  allowedOrigins String[]
+  themeOverrides Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("embed_configs")
+}
+
+model QueryCache {
+  id        String   @id @default(uuid())
+  queryHash String   @unique
+  result    Json
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("query_caches")
+}
+
+model DeadLetterEvent {
+  id           String     @id @default(uuid())
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  payload      Json
+  errorReason  String
+  createdAt    DateTime   @default(now())
+  retriedAt    DateTime?
+
+  @@map("dead_letter_events")
+}

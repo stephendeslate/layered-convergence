@@ -1,0 +1,13 @@
+{
+  "name": "@field-service/config",
+  "version": "0.0.1",
+  "private": true,
+  "exports": {
+    "./eslint": "./eslint.config.mjs",
+    "./tsconfig.base": "./tsconfig.base.json"
+  },
+  "devDependencies": {
+    "typescript-eslint": "^8.30.0",
+    "typescript": "^5.8.0"
+  }
+}

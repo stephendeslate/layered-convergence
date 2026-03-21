@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --analytics-primary: #3b82f6;
+  --analytics-font-family: 'Inter', sans-serif;
+  --analytics-bg: #ffffff;
+  --analytics-text: #1e293b;
+  --analytics-border: #e2e8f0;
+  --analytics-chart-1: #3b82f6;
+  --analytics-chart-2: #10b981;
+  --analytics-chart-3: #f59e0b;
+  --analytics-chart-4: #ef4444;
+  --analytics-chart-5: #8b5cf6;
+}
