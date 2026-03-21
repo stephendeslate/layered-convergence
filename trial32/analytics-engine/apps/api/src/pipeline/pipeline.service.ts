@@ -1,0 +1,76 @@
+// [TRACED:AE-AC-001] Pipeline CRUD with tenant isolation
+// [TRACED:AE-AC-002] Pipeline state machine with validated transitions
+// [TRACED:AE-PV-003] Pipeline state machine enforces valid transitions only
+// [TRACED:AE-SA-004] findFirst calls have justification comments
+
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { PipelineStatus } from '@prisma/client';
+import { validateTransition, PIPELINE_TRANSITIONS } from '@analytics-engine/shared';
+
+@Injectable()
+export class PipelineService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(data: { name: string; tenantId: string; config?: Record<string, unknown> }) {
+    return this.prisma.pipeline.create({
+      data: {
+        name: data.name,
+        tenantId: data.tenantId,
+        config: data.config ?? {},
+      },
+    });
+  }
+
+  async findAll(tenantId: string) {
+    return this.prisma.pipeline.findMany({
+      where: { tenantId },
+    });
+  }
+
+  async findOne(id: string, tenantId: string) {
+    // findFirst: querying by id + tenantId (no unique constraint on this composite)
+    const pipeline = await this.prisma.pipeline.findFirst({
+      where: { id, tenantId },
+    });
+
+    if (!pipeline) {
+      throw new NotFoundException('Pipeline not found');
+    }
+
+    return pipeline;
+  }
+
+  async update(id: string, tenantId: string, data: { name?: string; config?: Record<string, unknown> }) {
+    await this.findOne(id, tenantId);
+
+    return this.prisma.pipeline.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async transition(id: string, tenantId: string, newStatus: PipelineStatus) {
+    const pipeline = await this.findOne(id, tenantId);
+
+    try {
+      validateTransition(pipeline.status, newStatus, PIPELINE_TRANSITIONS);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Invalid transition';
+      throw new BadRequestException(message);
+    }
+
+    return this.prisma.pipeline.update({
+      where: { id },
+      data: { status: newStatus },
+    });
+  }
+
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
+
+    return this.prisma.pipeline.delete({
+      where: { id },
+    });
+  }
+}

@@ -1,0 +1,135 @@
+// [TRACED:EM-DM-001] Prisma schema with @@map on all models
+// [TRACED:EM-DM-002] @map on multi-word columns
+// [TRACED:EM-DM-003] Decimal(20,2) for Transaction amounts
+// [TRACED:EM-DM-004] Decimal(20,2) for Payout amounts
+// [TRACED:EM-PV-001] Transaction belongs to exactly one Tenant
+// [TRACED:EM-PV-004] Webhook configuration scoped to Tenant
+// [TRACED:EM-SA-005] All models use @@map for table names
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUYER
+  SELLER
+  ARBITER
+}
+
+enum TransactionStatus {
+  PENDING
+  FUNDED
+  RELEASED
+  DISPUTED
+  REFUNDED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  ESCALATED
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users        User[]
+  transactions Transaction[]
+  disputes     Dispute[]
+  payouts      Payout[]
+  webhooks     Webhook[]
+
+  @@map("tenants")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(BUYER)
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  disputes Dispute[]
+
+  @@map("users")
+}
+
+model Transaction {
+  id          String            @id @default(uuid())
+  amount      Decimal           @db.Decimal(20, 2)
+  currency    String            @default("USD")
+  status      TransactionStatus @default(PENDING)
+  buyerId     String            @map("buyer_id")
+  sellerId    String            @map("seller_id")
+  description String
+  tenantId    String            @map("tenant_id")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  disputes Dispute[]
+  payouts  Payout[]
+
+  @@map("transactions")
+}
+
+model Dispute {
+  id            String        @id @default(uuid())
+  reason        String
+  status        DisputeStatus @default(OPEN)
+  resolution    String?
+  transactionId String        @map("transaction_id")
+  filedById     String        @map("filed_by_id")
+  tenantId      String        @map("tenant_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  filedBy     User        @relation(fields: [filedById], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@map("disputes")
+}
+
+model Payout {
+  id            String    @id @default(uuid())
+  amount        Decimal   @db.Decimal(20, 2)
+  currency      String    @default("USD")
+  recipientId   String    @map("recipient_id")
+  transactionId String    @map("transaction_id")
+  tenantId      String    @map("tenant_id")
+  processedAt   DateTime? @map("processed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@map("payouts")
+}
+
+model Webhook {
+  id        String   @id @default(uuid())
+  url       String
+  events    String[]
+  isActive  Boolean  @default(true) @map("is_active")
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("webhooks")
+}
