@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: escrow_test
+      POSTGRES_PASSWORD: escrow_test_secret
+      POSTGRES_DB: escrow_marketplace_test
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U escrow_test -d escrow_marketplace_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: build
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://escrow_test:escrow_test_secret@postgres-test:5432/escrow_marketplace_test?schema=public
+      JWT_SECRET: test-jwt-secret
+      CORS_ORIGIN: http://localhost:3000
+      PORT: "4001"
+    command: ["npm", "test"]

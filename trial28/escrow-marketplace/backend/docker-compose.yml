@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: escrow
+      POSTGRES_PASSWORD: escrow_secret
+      POSTGRES_DB: escrow_marketplace
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U escrow -d escrow_marketplace"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://escrow:escrow_secret@postgres:5432/escrow_marketplace?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-secure-random-string}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      PORT: "4001"
+    ports:
+      - "4001:4001"
+
+volumes:
+  pg_data:
