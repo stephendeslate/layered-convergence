@@ -1,0 +1,129 @@
+// Escrow Marketplace — Prisma Schema
+// 5 entities, 2 state machines (EscrowStatus, DisputeStatus)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  BUYER
+  SELLER
+  ARBITER
+
+  @@map("role")
+}
+
+enum EscrowStatus {
+  CREATED
+  FUNDED
+  DELIVERED
+  RELEASED
+  DISPUTED
+  REFUNDED
+  CANCELLED
+
+  @@map("escrow_status")
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_BUYER
+  RESOLVED_SELLER
+  ESCALATED
+  CLOSED
+
+  @@map("dispute_status")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users        User[]
+  transactions EscrowTransaction[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(BUYER)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  buyerTransactions  EscrowTransaction[] @relation("BuyerTransactions")
+  sellerTransactions EscrowTransaction[] @relation("SellerTransactions")
+  filedDisputes      Dispute[]           @relation("FiledDisputes")
+  assignedDisputes   Dispute[]           @relation("AssignedDisputes")
+
+  @@map("users")
+}
+
+model EscrowTransaction {
+  id          String       @id @default(uuid())
+  tenantId    String       @map("tenant_id")
+  buyerId     String       @map("buyer_id")
+  sellerId    String       @map("seller_id")
+  amount      Decimal      @db.Decimal(12, 2)
+  currency    String       @default("USD")
+  status      EscrowStatus @default(CREATED)
+  description String?
+  fundedAt    DateTime?    @map("funded_at")
+  releasedAt  DateTime?    @map("released_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  buyer    User      @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  seller   User      @relation("SellerTransactions", fields: [sellerId], references: [id])
+  disputes Dispute[]
+
+  @@map("escrow_transactions")
+}
+
+model Dispute {
+  id            String        @id @default(uuid())
+  transactionId String        @map("transaction_id")
+  filedById     String        @map("filed_by_id")
+  assignedToId  String?       @map("assigned_to_id")
+  status        DisputeStatus @default(OPEN)
+  reason        String
+  resolution    String?
+  filedAt       DateTime      @default(now()) @map("filed_at")
+  resolvedAt    DateTime?     @map("resolved_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  transaction EscrowTransaction @relation(fields: [transactionId], references: [id])
+  filedBy     User              @relation("FiledDisputes", fields: [filedById], references: [id])
+  assignedTo  User?             @relation("AssignedDisputes", fields: [assignedToId], references: [id])
+
+  @@map("disputes")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  userId    String   @map("user_id")
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}

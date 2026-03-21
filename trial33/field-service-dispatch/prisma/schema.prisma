@@ -1,0 +1,179 @@
+// Field Service Dispatch — Prisma Schema
+// 8 entities, 1 state machine (WorkOrderStatus)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DISPATCHER
+  TECHNICIAN
+  CUSTOMER
+
+  @@map("role")
+}
+
+enum WorkOrderStatus {
+  CREATED
+  ASSIGNED
+  EN_ROUTE
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+
+  @@map("work_order_status")
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+
+  @@map("priority")
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  BUSY
+  OFF_DUTY
+  ON_BREAK
+
+  @@map("availability_status")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users      User[]
+  workOrders WorkOrder[]
+  locations  ServiceLocation[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(CUSTOMER)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+  technician TechnicianProfile?
+  workOrders WorkOrder[]
+  notes      WorkOrderNote[]
+
+  @@map("users")
+}
+
+model TechnicianProfile {
+  id           String             @id @default(uuid())
+  userId       String             @unique @map("user_id")
+  skills       String[]
+  availability AvailabilityStatus @default(AVAILABLE)
+  latitude     Decimal?           @db.Decimal(10, 7)
+  longitude    Decimal?           @db.Decimal(10, 7)
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id])
+  assignments WorkOrder[]
+
+  @@map("technician_profiles")
+}
+
+model WorkOrder {
+  id           String          @id @default(uuid())
+  tenantId     String          @map("tenant_id")
+  customerId   String          @map("customer_id")
+  technicianId String?         @map("technician_id")
+  locationId   String?         @map("location_id")
+  title        String
+  description  String
+  status       WorkOrderStatus @default(CREATED)
+  priority     Priority        @default(MEDIUM)
+  scheduledAt  DateTime?       @map("scheduled_at")
+  startedAt    DateTime?       @map("started_at")
+  completedAt  DateTime?       @map("completed_at")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id])
+  customer   User               @relation(fields: [customerId], references: [id])
+  technician TechnicianProfile? @relation(fields: [technicianId], references: [id])
+  location   ServiceLocation?   @relation(fields: [locationId], references: [id])
+  notes      WorkOrderNote[]
+  transitions WorkOrderTransition[]
+
+  @@map("work_orders")
+}
+
+model WorkOrderNote {
+  id          String   @id @default(uuid())
+  workOrderId String   @map("work_order_id")
+  authorId    String   @map("author_id")
+  content     String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
+  author    User      @relation(fields: [authorId], references: [id])
+
+  @@map("work_order_notes")
+}
+
+model ServiceLocation {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  name      String
+  address   String
+  latitude  Decimal  @db.Decimal(10, 7)
+  longitude Decimal  @db.Decimal(10, 7)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  workOrders WorkOrder[]
+
+  @@map("service_locations")
+}
+
+model WorkOrderTransition {
+  id          String          @id @default(uuid())
+  workOrderId String          @map("work_order_id")
+  fromStatus  WorkOrderStatus @map("from_status")
+  toStatus    WorkOrderStatus @map("to_status")
+  changedBy   String          @map("changed_by")
+  reason      String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
+
+  @@map("work_order_transitions")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  userId    String   @map("user_id")
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
