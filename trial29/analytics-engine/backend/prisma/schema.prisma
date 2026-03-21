@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  VIEWER
+  EDITOR
+  ANALYST
+  ADMIN
+
+  @@map("user_role")
+}
+
+enum PipelineStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+
+  @@map("pipeline_status")
+}
+
+enum SyncRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+
+  @@map("sync_run_status")
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users       User[]
+  dataSources DataSource[]
+  dashboards  Dashboard[]
+  pipelines   Pipeline[]
+  embeds      Embed[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(VIEWER)
+  tenantId     String   @map("tenant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  dashboards Dashboard[]
+
+  @@map("users")
+}
+
+model DataSource {
+  id         String   @id @default(cuid())
+  name       String
+  type       String
+  config     String
+  tenantId   String   @map("tenant_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  dataPoints DataPoint[]
+  syncRuns   SyncRun[]
+
+  @@map("data_sources")
+}
+
+model DataPoint {
+  id           String   @id @default(cuid())
+  value        Decimal  @db.Decimal(20, 6)
+  label        String
+  timestamp    DateTime
+  dataSourceId String   @map("data_source_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@map("data_points")
+}
+
+model Pipeline {
+  id        String         @id @default(cuid())
+  name      String
+  status    PipelineStatus @default(DRAFT)
+  config    String
+  tenantId  String         @map("tenant_id")
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("pipelines")
+}
+
+model Dashboard {
+  id        String   @id @default(cuid())
+  title     String
+  tenantId  String   @map("tenant_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+  widgets Widget[]
+
+  @@map("dashboards")
+}
+
+model Widget {
+  id          String   @id @default(cuid())
+  type        String
+  config      String
+  dashboardId String   @map("dashboard_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+
+  @@map("widgets")
+}
+
+model Embed {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  tenantId  String   @map("tenant_id")
+  config    String
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("embeds")
+}
+
+model SyncRun {
+  id           String        @id @default(cuid())
+  status       SyncRunStatus @default(PENDING)
+  dataSourceId String        @map("data_source_id")
+  startedAt    DateTime?     @map("started_at")
+  completedAt  DateTime?     @map("completed_at")
+  recordCount  Int?          @map("record_count")
+  errorMessage String?       @map("error_message")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@map("sync_runs")
+}

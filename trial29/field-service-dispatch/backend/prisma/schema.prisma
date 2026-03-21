@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  DISPATCHER
+  TECHNICIAN
+  MANAGER
+  ADMIN
+
+  @@map("user_role")
+}
+
+enum WorkOrderStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+
+  @@map("work_order_status")
+}
+
+enum RouteStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+
+  @@map("route_status")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  VOID
+
+  @@map("invoice_status")
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users       User[]
+  customers   Customer[]
+  technicians Technician[]
+  workOrders  WorkOrder[]
+  routes      Route[]
+
+  @@map("companies")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(TECHNICIAN)
+  companyId    String   @map("company_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("users")
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String
+  address   String
+  companyId String   @map("company_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company    Company     @relation(fields: [companyId], references: [id])
+  workOrders WorkOrder[]
+  invoices   Invoice[]
+
+  @@map("customers")
+}
+
+model Technician {
+  id         String   @id @default(cuid())
+  name       String
+  phone      String
+  specialty  String
+  companyId  String   @map("company_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  company    Company     @relation(fields: [companyId], references: [id])
+  workOrders WorkOrder[]
+  gpsEvents  GpsEvent[]
+  routes     Route[]
+
+  @@map("technicians")
+}
+
+model WorkOrder {
+  id           String          @id @default(cuid())
+  title        String
+  description  String
+  status       WorkOrderStatus @default(PENDING)
+  priority     Int             @default(1)
+  scheduledAt  DateTime?       @map("scheduled_at")
+  completedAt  DateTime?       @map("completed_at")
+  companyId    String          @map("company_id")
+  customerId   String          @map("customer_id")
+  technicianId String?         @map("technician_id")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  company    Company     @relation(fields: [companyId], references: [id])
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  technician Technician? @relation(fields: [technicianId], references: [id])
+  invoices   Invoice[]
+
+  @@map("work_orders")
+}
+
+model Route {
+  id           String      @id @default(cuid())
+  name         String
+  status       RouteStatus @default(PLANNED)
+  date         DateTime
+  technicianId String      @map("technician_id")
+  companyId    String      @map("company_id")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  technician Technician @relation(fields: [technicianId], references: [id])
+  company    Company    @relation(fields: [companyId], references: [id])
+
+  @@map("routes")
+}
+
+model GpsEvent {
+  id           String   @id @default(cuid())
+  latitude     Decimal  @db.Decimal(10, 7)
+  longitude    Decimal  @db.Decimal(10, 7)
+  accuracy     Decimal  @db.Decimal(8, 2)
+  technicianId String   @map("technician_id")
+  recordedAt   DateTime @map("recorded_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  technician Technician @relation(fields: [technicianId], references: [id])
+
+  @@map("gps_events")
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  amount      Decimal       @db.Decimal(12, 2)
+  status      InvoiceStatus @default(DRAFT)
+  dueDate     DateTime      @map("due_date")
+  paidAt      DateTime?     @map("paid_at")
+  workOrderId String        @map("work_order_id")
+  customerId  String        @map("customer_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
+  customer  Customer  @relation(fields: [customerId], references: [id])
+
+  @@map("invoices")
+}
