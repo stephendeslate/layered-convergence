@@ -1,2 +1,5 @@
 node_modules/
 *.lock
+
+# In-progress trials (not yet ready for publication)
+/trial15/
