@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/* TRACED: EM-UI-BASE-001 — Base theme variables */
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0.042 265);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.965 0.001 286);
+  --secondary-foreground: oklch(0.205 0.042 265);
+  --muted: oklch(0.965 0.001 286);
+  --muted-foreground: oklch(0.556 0.014 286);
+  --accent: oklch(0.965 0.001 286);
+  --accent-foreground: oklch(0.205 0.042 265);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0.004 286);
+  --input: oklch(0.922 0.004 286);
+  --ring: oklch(0.708 0.165 254);
+  --radius: 0.625rem;
+}
+
+/* TRACED: EM-UI-DARK-001 — Dark mode via OS preference */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0.015 286);
+    --card-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0.004 286);
+    --primary-foreground: oklch(0.205 0.042 265);
+    --secondary: oklch(0.269 0.017 286);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0.017 286);
+    --muted-foreground: oklch(0.708 0.014 286);
+    --accent: oklch(0.269 0.017 286);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.335 0.014 286);
+    --input: oklch(0.269 0.017 286);
+    --ring: oklch(0.556 0.165 254);
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, sans-serif;
+}

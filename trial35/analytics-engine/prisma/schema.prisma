@@ -1,0 +1,165 @@
+// TRACED: AE-DB-001 — Analytics engine database schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// TRACED: AE-DB-002 — Tenant model with @@map
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users      User[]
+  dashboards Dashboard[]
+  pipelines  Pipeline[]
+  reports    Report[]
+
+  @@map("tenants")
+}
+
+// TRACED: AE-DB-003 — User model with @@map
+model User {
+  id           String   @id @default(uuid())
+  email        String
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(VIEWER)
+  tenantId     String   @map("tenant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  dashboards Dashboard[]
+  pipelines  Pipeline[]
+
+  @@unique([email, tenantId])
+  @@map("users")
+}
+
+// UserRole enum with @@map
+enum UserRole {
+  ADMIN
+  MANAGER
+  ANALYST
+  VIEWER
+
+  @@map("user_role")
+}
+
+// TRACED: AE-DB-005 — Dashboard model with @@map
+model Dashboard {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  tenantId    String   @map("tenant_id")
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdBy User     @relation(fields: [createdById], references: [id])
+  widgets   Widget[]
+
+  @@map("dashboards")
+}
+
+// TRACED: AE-DB-006 — Widget model with @@map
+model Widget {
+  id          String     @id @default(uuid())
+  type        WidgetType
+  title       String
+  config      Json       @default("{}")
+  dashboardId String     @map("dashboard_id")
+  position    Int        @default(0)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+
+  @@map("widgets")
+}
+
+// WidgetType enum with @@map
+enum WidgetType {
+  CHART
+  TABLE
+  METRIC
+  MAP
+
+  @@map("widget_type")
+}
+
+// TRACED: AE-DB-008 — Pipeline model with @@map
+model Pipeline {
+  id          String         @id @default(uuid())
+  name        String
+  source      String
+  schedule    String?
+  status      PipelineStatus @default(DRAFT)
+  tenantId    String         @map("tenant_id")
+  createdById String         @map("created_by_id")
+  lastRunAt   DateTime?      @map("last_run_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  createdBy User   @relation(fields: [createdById], references: [id])
+
+  @@map("pipelines")
+}
+
+// PipelineStatus enum with @@map
+enum PipelineStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  FAILED
+  COMPLETED
+
+  @@map("pipeline_status")
+}
+
+// TRACED: AE-DB-010 — Report model with @@map
+model Report {
+  id          String       @id @default(uuid())
+  name        String
+  type        ReportType
+  status      ReportStatus @default(PENDING)
+  config      Json         @default("{}")
+  outputUrl   String?      @map("output_url")
+  fileSize    Int?         @map("file_size")
+  tenantId    String       @map("tenant_id")
+  generatedAt DateTime?    @map("generated_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("reports")
+}
+
+// ReportType enum with @@map
+enum ReportType {
+  SUMMARY
+  DETAILED
+  EXPORT
+  SCHEDULED
+
+  @@map("report_type")
+}
+
+// ReportStatus enum with @@map
+enum ReportStatus {
+  PENDING
+  GENERATING
+  READY
+  FAILED
+
+  @@map("report_status")
+}

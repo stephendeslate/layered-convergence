@@ -1,0 +1,32 @@
+// TRACED: FD-UI-ERR-002 — Technicians error boundary
+'use client';
+
+import { useEffect, useRef } from 'react';
+import { Alert, AlertTitle, AlertDescription } from '../../../../components/ui/alert';
+import { Button } from '../../../../components/ui/button';
+
+export default function TechniciansError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
+
+  return (
+    <div role="alert" className="space-y-4">
+      <Alert variant="destructive">
+        <AlertTitle ref={headingRef} tabIndex={-1}>
+          Failed to load technicians
+        </AlertTitle>
+        <AlertDescription>{error.message}</AlertDescription>
+      </Alert>
+      <Button onClick={reset}>Try again</Button>
+    </div>
+  );
+}

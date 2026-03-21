@@ -1,0 +1,131 @@
+// TRACED: FD-DB-001 — Prisma schema for field service dispatch
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// TRACED: FD-DB-002 — Tenant model with snake_case mapping
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users       User[]
+  workOrders  WorkOrder[]
+  technicians Technician[]
+
+  @@map("tenants")
+}
+
+// TRACED: FD-DB-003 — User model with role enum
+model User {
+  id           String   @id @default(uuid())
+  email        String
+  passwordHash String   @map("password_hash")
+  role         UserRole
+  tenantId     String   @map("tenant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  workOrders WorkOrder[]
+
+  @@unique([email, tenantId])
+  @@map("users")
+}
+
+model WorkOrder {
+  id          String            @id
+  title       String
+  description String?
+  status      WorkOrderStatus   @default(OPEN)
+  priority    WorkOrderPriority @default(MEDIUM)
+  latitude    Decimal?          @db.Decimal(10, 7)
+  longitude   Decimal?          @db.Decimal(10, 7)
+  tenantId    String            @map("tenant_id")
+  createdById String            @map("created_by_id")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  createdBy User       @relation(fields: [createdById], references: [id])
+  schedules Schedule[]
+
+  @@map("work_orders")
+}
+
+// TRACED: FD-DB-005 — Technician model with GPS coordinates
+model Technician {
+  id        String           @id
+  name      String
+  status    TechnicianStatus @default(AVAILABLE)
+  latitude  Decimal          @db.Decimal(10, 7)
+  longitude Decimal          @db.Decimal(10, 7)
+  tenantId  String           @map("tenant_id")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  schedules Schedule[]
+
+  @@map("technicians")
+}
+
+// TRACED: FD-DB-006 — Schedule model linking work orders to technicians
+model Schedule {
+  id           String   @id @default(uuid())
+  workOrderId  String   @map("work_order_id")
+  technicianId String   @map("technician_id")
+  scheduledAt  DateTime @map("scheduled_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  workOrder  WorkOrder  @relation(fields: [workOrderId], references: [id])
+  technician Technician @relation(fields: [technicianId], references: [id])
+
+  @@map("schedules")
+}
+
+enum UserRole {
+  ADMIN
+  DISPATCHER
+  TECHNICIAN
+  VIEWER
+
+  @@map("user_role")
+}
+
+enum WorkOrderStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+
+  @@map("work_order_status")
+}
+
+enum WorkOrderPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+
+  @@map("work_order_priority")
+}
+
+enum TechnicianStatus {
+  AVAILABLE
+  BUSY
+  OFF_DUTY
+
+  @@map("technician_status")
+}
+
+// TRACED: FD-DB-008 — All models use @@map, all multi-word columns use @map

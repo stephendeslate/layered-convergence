@@ -1,0 +1,142 @@
+// TRACED: EM-DB-001 — Escrow marketplace database schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// TRACED: EM-DB-002 — Tenant model with @@map
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users        User[]
+  listings     Listing[]
+  transactions Transaction[]
+  disputes     Dispute[]
+
+  @@map("tenants")
+}
+
+// TRACED: EM-DB-003 — User model with @@map
+model User {
+  id           String   @id @default(uuid())
+  email        String
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(BUYER)
+  balance      Decimal  @default(0) @db.Decimal(12, 2)
+  tenantId     String   @map("tenant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  listings     Listing[]
+  purchases    Transaction[] @relation("BuyerTransactions")
+  disputes     Dispute[]
+
+  @@unique([email, tenantId])
+  @@map("users")
+}
+
+// UserRole enum with @@map
+enum UserRole {
+  ADMIN
+  SELLER
+  BUYER
+
+  @@map("user_role")
+}
+
+// TRACED: EM-DB-005 — Listing model with @@map and Decimal price
+model Listing {
+  id          String        @id @default(uuid())
+  title       String
+  description String
+  price       Decimal       @db.Decimal(12, 2)
+  status      ListingStatus @default(ACTIVE)
+  sellerId    String        @map("seller_id")
+  tenantId    String        @map("tenant_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  seller       User          @relation(fields: [sellerId], references: [id])
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  transactions Transaction[]
+
+  @@map("listings")
+}
+
+// ListingStatus enum with @@map
+enum ListingStatus {
+  ACTIVE
+  SOLD
+  CANCELLED
+
+  @@map("listing_status")
+}
+
+// TRACED: EM-DB-006 — Transaction model with @@map and Decimal amount
+model Transaction {
+  id        String            @id @default(uuid())
+  amount    Decimal           @db.Decimal(12, 2)
+  status    TransactionStatus @default(PENDING)
+  listingId String            @map("listing_id")
+  buyerId   String            @map("buyer_id")
+  tenantId  String            @map("tenant_id")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  listing  Listing   @relation(fields: [listingId], references: [id])
+  buyer    User      @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  disputes Dispute[]
+
+  @@map("transactions")
+}
+
+// TransactionStatus enum with @@map
+enum TransactionStatus {
+  PENDING
+  ESCROWED
+  RELEASED
+  DISPUTED
+  REFUNDED
+
+  @@map("transaction_status")
+}
+
+// TRACED: EM-DB-008 — Dispute model with @@map
+model Dispute {
+  id            String        @id @default(uuid())
+  reason        String
+  status        DisputeStatus @default(OPEN)
+  resolution    String?
+  transactionId String        @map("transaction_id")
+  filedById     String        @map("filed_by_id")
+  tenantId      String        @map("tenant_id")
+  resolvedAt    DateTime?     @map("resolved_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  filedBy     User        @relation(fields: [filedById], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@map("disputes")
+}
+
+// DisputeStatus enum with @@map
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+
+  @@map("dispute_status")
+}

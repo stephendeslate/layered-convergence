@@ -48,16 +48,16 @@
     "layerNum": 5,
     "name": "Monorepo",
     "domain": "Monorepo",
-    "status": "in_progress",
+    "status": "complete",
     "failureModesResolved": 1,
-    "trials": {"completed": [32, 33], "minTrials": 3, "maxTrials": 4},
-    "description": "Turborepo 2 + pnpm workspaces, packages/shared, cross-package types"
+    "trials": {"completed": [32, 33, 34, 35], "minTrials": 3, "maxTrials": 4},
+    "description": "Turborepo 2 + pnpm workspaces, packages/shared, cross-package types. Converged T35 with caveats."
   },
   {
     "layerNum": 6,
     "name": "Security",
     "domain": "Security",
-    "status": "pending",
+    "status": "in_progress",
     "failureModesResolved": 0,
     "trials": {"completed": [], "minTrials": 3, "maxTrials": 5},
     "description": "OWASP Top 10, rate limiting, CORS/CSP, Helmet.js, dependency audit"
