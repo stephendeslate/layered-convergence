@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// TRACED:DM-004: Role enum contains BUYER and SELLER only (no ADMIN at DB level)
+enum Role {
+  BUYER
+  SELLER
+}
+
+// TRACED:DM-005: Transaction status enum matches state machine
+enum TransactionStatus {
+  PENDING
+  FUNDED
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  DISPUTE
+  REFUNDED
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// TRACED:DM-001: All models use @@map for table names
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  buyerTransactions  Transaction[] @relation("BuyerTransactions")
+  sellerTransactions Transaction[] @relation("SellerTransactions")
+  disputes           Dispute[]
+  payouts            Payout[]
+  webhooks           Webhook[]
+
+  @@map("users")
+}
+
+// TRACED:DM-002: Multi-word columns use @map
+// TRACED:DM-003: Monetary fields are Decimal(12,2)
+model Transaction {
+  id          String            @id @default(uuid())
+  amount      Decimal           @db.Decimal(12, 2)
+  description String
+  status      TransactionStatus @default(PENDING)
+  buyerId     String            @map("buyer_id")
+  sellerId    String            @map("seller_id")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  buyer    User      @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  seller   User      @relation("SellerTransactions", fields: [sellerId], references: [id])
+  disputes Dispute[]
+  payouts  Payout[]
+
+  @@map("transactions")
+}
+
+model Dispute {
+  id            String        @id @default(uuid())
+  reason        String
+  status        DisputeStatus @default(OPEN)
+  transactionId String        @map("transaction_id")
+  filedById     String        @map("filed_by_id")
+  resolvedAt    DateTime?     @map("resolved_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  filedBy     User        @relation(fields: [filedById], references: [id])
+
+  @@map("disputes")
+}
+
+model Payout {
+  id            String       @id @default(uuid())
+  amount        Decimal      @db.Decimal(12, 2)
+  status        PayoutStatus @default(PENDING)
+  sellerId      String       @map("seller_id")
+  transactionId String       @map("transaction_id")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  seller      User        @relation(fields: [sellerId], references: [id])
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+
+  @@map("payouts")
+}
+
+model Webhook {
+  id        String   @id @default(uuid())
+  url       String
+  event     String
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("webhooks")
+}

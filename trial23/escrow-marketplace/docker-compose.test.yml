@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  test-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: escrow_test
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    ports:
+      - "5433:5432"
+    volumes:
+      - test-db-data:/var/lib/postgresql/data
+
+volumes:
+  test-db-data:
