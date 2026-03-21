@@ -1,0 +1,124 @@
+// [TRACED:EM-007] NestJS 11 + Prisma 6 ORM backend
+// [TRACED:EM-014] All 5 entities defined: User, Transaction, Dispute, Payout, Webhook
+// [TRACED:EM-020] All models use @@map and @map for snake_case conventions
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// [TRACED:EM-015] Role enum with BUYER, SELLER, ARBITER
+enum Role {
+  ADMIN
+  BUYER
+  SELLER
+  ARBITER
+
+  @@map("roles")
+}
+
+// [TRACED:EM-016] User entity with role-based access
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String   @map("password_hash")
+  role         Role     @default(BUYER)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  buyerTransactions  Transaction[] @relation("BuyerTransactions")
+  sellerTransactions Transaction[] @relation("SellerTransactions")
+  disputes           Dispute[]
+
+  @@map("users")
+}
+
+// [TRACED:EM-017] Transaction state machine: PENDING -> FUNDED -> DELIVERED -> RELEASED / DISPUTED
+enum TransactionStatus {
+  PENDING
+  FUNDED
+  DELIVERED
+  RELEASED
+  DISPUTED
+  REFUNDED
+
+  @@map("transaction_statuses")
+}
+
+// [TRACED:EM-018] Transaction entity with Decimal for escrow amounts
+model Transaction {
+  id          String            @id @default(uuid())
+  buyerId     String            @map("buyer_id")
+  sellerId    String            @map("seller_id")
+  amount      Decimal           @db.Decimal(20, 2)
+  currency    String            @default("USD")
+  status      TransactionStatus @default(PENDING)
+  description String
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  buyer    User      @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  seller   User      @relation("SellerTransactions", fields: [sellerId], references: [id])
+  disputes Dispute[]
+  payouts  Payout[]
+
+  @@map("transactions")
+}
+
+// [TRACED:EM-019] Dispute state machine: OPEN -> UNDER_REVIEW -> RESOLVED
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_BUYER
+  RESOLVED_SELLER
+
+  @@map("dispute_statuses")
+}
+
+// Dispute entity for transaction conflicts
+model Dispute {
+  id            String        @id @default(uuid())
+  transactionId String        @map("transaction_id")
+  filedBy       String        @map("filed_by")
+  reason        String
+  status        DisputeStatus @default(OPEN)
+  resolution    String?
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  filer       User        @relation(fields: [filedBy], references: [id])
+
+  @@map("disputes")
+}
+
+// Payout entity for fund releases
+model Payout {
+  id            String   @id @default(uuid())
+  transactionId String   @map("transaction_id")
+  amount        Decimal  @db.Decimal(20, 2)
+  recipientId   String   @map("recipient_id")
+  processedAt   DateTime? @map("processed_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+
+  @@map("payouts")
+}
+
+// [TRACED:EM-023] Webhook entity for event notifications
+model Webhook {
+  id        String   @id @default(uuid())
+  url       String
+  secret    String
+  events    String[]
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("webhooks")
+}
