@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  BUYER
+  SELLER
+  ARBITER
+  ADMIN
+
+  @@map("user_role")
+}
+
+enum TransactionStatus {
+  PENDING
+  FUNDED
+  RELEASED
+  DISPUTED
+  REFUNDED
+
+  @@map("transaction_status")
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  ESCALATED
+
+  @@map("dispute_status")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(BUYER)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  buyerTransactions  Transaction[] @relation("buyer_transactions")
+  sellerTransactions Transaction[] @relation("seller_transactions")
+  disputes           Dispute[]
+  payouts            Payout[]
+
+  @@map("users")
+}
+
+model Transaction {
+  id          String            @id @default(cuid())
+  amount      Decimal           @db.Decimal(20, 2)
+  currency    String            @default("USD")
+  status      TransactionStatus @default(PENDING)
+  description String
+  buyerId     String            @map("buyer_id")
+  sellerId    String            @map("seller_id")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  buyer    User      @relation("buyer_transactions", fields: [buyerId], references: [id])
+  seller   User      @relation("seller_transactions", fields: [sellerId], references: [id])
+  disputes Dispute[]
+  payouts  Payout[]
+  webhooks Webhook[]
+
+  @@map("transactions")
+}
+
+model Dispute {
+  id            String        @id @default(cuid())
+  reason        String
+  status        DisputeStatus @default(OPEN)
+  resolution    String?
+  transactionId String        @map("transaction_id")
+  filedById     String        @map("filed_by_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  filedBy     User        @relation(fields: [filedById], references: [id])
+
+  @@map("disputes")
+}
+
+model Payout {
+  id            String   @id @default(cuid())
+  amount        Decimal  @db.Decimal(20, 2)
+  method        String
+  reference     String?
+  transactionId String   @map("transaction_id")
+  recipientId   String   @map("recipient_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  recipient   User        @relation(fields: [recipientId], references: [id])
+
+  @@map("payouts")
+}
+
+model Webhook {
+  id            String   @id @default(cuid())
+  url           String
+  event         String
+  payload       String
+  deliveredAt   DateTime? @map("delivered_at")
+  transactionId String   @map("transaction_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+
+  @@map("webhooks")
+}

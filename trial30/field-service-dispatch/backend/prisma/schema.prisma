@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  TECHNICIAN
+  DISPATCHER
+  MANAGER
+  ADMIN
+
+  @@map("user_role")
+}
+
+enum WorkOrderStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+
+  @@map("work_order_status")
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+
+  @@map("priority")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(TECHNICIAN)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  workOrders   WorkOrder[]
+  schedules    Schedule[]
+  skills       Skill[]
+
+  @@map("users")
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String
+  address   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  workOrders WorkOrder[]
+
+  @@map("customers")
+}
+
+model ServiceArea {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  zipCodes  String[] @map("zip_codes")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  workOrders WorkOrder[]
+
+  @@map("service_areas")
+}
+
+model WorkOrder {
+  id            String          @id @default(cuid())
+  title         String
+  description   String
+  status        WorkOrderStatus @default(OPEN)
+  priority      Priority        @default(MEDIUM)
+  estimatedCost Decimal?        @db.Decimal(20, 2) @map("estimated_cost")
+  actualCost    Decimal?        @db.Decimal(20, 2) @map("actual_cost")
+  customerId    String          @map("customer_id")
+  technicianId  String?         @map("technician_id")
+  serviceAreaId String?         @map("service_area_id")
+  scheduledAt   DateTime?       @map("scheduled_at")
+  completedAt   DateTime?       @map("completed_at")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  customer    Customer     @relation(fields: [customerId], references: [id])
+  technician  User?        @relation(fields: [technicianId], references: [id])
+  serviceArea ServiceArea? @relation(fields: [serviceAreaId], references: [id])
+  equipment   Equipment[]
+
+  @@map("work_orders")
+}
+
+model Equipment {
+  id          String   @id @default(cuid())
+  name        String
+  serialNumber String  @unique @map("serial_number")
+  condition   String
+  workOrderId String?  @map("work_order_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id])
+
+  @@map("equipment")
+}
+
+model Skill {
+  id          String   @id @default(cuid())
+  name        String
+  level       String
+  technicianId String  @map("technician_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  technician User @relation(fields: [technicianId], references: [id])
+
+  @@map("skills")
+}
+
+model Schedule {
+  id           String   @id @default(cuid())
+  dayOfWeek    String   @map("day_of_week")
+  startTime    String   @map("start_time")
+  endTime      String   @map("end_time")
+  technicianId String   @map("technician_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  technician User @relation(fields: [technicianId], references: [id])
+
+  @@map("schedules")
+}

@@ -2,7 +2,7 @@ node_modules/
 *.lock
 
 # In-progress trials (not yet ready for publication)
-/trial30/
+/trial31/
 
 # Methodology files — proprietary, gatekept from public
 **/METHODOLOGY.md

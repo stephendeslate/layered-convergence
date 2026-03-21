@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dispatch
+      POSTGRES_PASSWORD: dispatch_secret
+      POSTGRES_DB: field_service_dispatch
+    ports:
+      - "5432:5432"
+    volumes:
+      - fsd_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dispatch -d field_service_dispatch"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://dispatch:dispatch_secret@postgres:5432/field_service_dispatch?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      PORT: "4000"
+    ports:
+      - "4000:4000"
+
+volumes:
+  fsd_pg_data:
