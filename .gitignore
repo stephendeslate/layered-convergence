@@ -11,3 +11,18 @@ node_modules/
 METHODOLOGY_ADDENDUM_*.md
 TRIAL_PROTOCOL.md
 .claude/
+
+# Scoring & evaluation files — private per publishing policy
+**/BUILD_REPORT.md
+**/SCORE_REPORT.md
+**/RED_TEAM_REPORT.md
+**/SCORE_RECONCILIATION.md
+
+# Verification logic — private
+verify-layer.sh
+
+# Environment files
+**/.env
+**/.env.local
+**/.env.production
+!**/.env.example
