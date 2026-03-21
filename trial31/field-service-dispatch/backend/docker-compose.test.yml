@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: fsd_test
+      POSTGRES_PASSWORD: fsd_test_secret
+      POSTGRES_DB: field_service_dispatch_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    ports:
+      - '5433:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U fsd_test -d field_service_dispatch_test']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  test-runner:
+    build: .
+    command: sh -c "npx prisma migrate deploy && pnpm test"
+    environment:
+      DATABASE_URL: postgresql://fsd_test:fsd_test_secret@postgres-test:5432/field_service_dispatch_test?schema=public
+      JWT_SECRET: test-jwt-secret
+      CORS_ORIGIN: http://localhost:3000
+      PORT: '4000'
+    depends_on:
+      postgres-test:
+        condition: service_healthy

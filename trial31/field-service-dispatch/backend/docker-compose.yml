@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: fsd
+      POSTGRES_PASSWORD: fsd_secret
+      POSTGRES_DB: field_service_dispatch
+    ports:
+      - '5432:5432'
+    volumes:
+      - fsd_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U fsd -d field_service_dispatch']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    ports:
+      - '4000:4000'
+    environment:
+      DATABASE_URL: postgresql://fsd:fsd_secret@postgres:5432/field_service_dispatch?schema=public
+      JWT_SECRET: docker-dev-jwt-secret
+      CORS_ORIGIN: http://localhost:3000
+      PORT: '4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  fsd_pg_data:
