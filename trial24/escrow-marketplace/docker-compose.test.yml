@@ -1,0 +1,19 @@
+# [TRACED:TS-004] Test database via Docker Compose
+version: '3.8'
+
+services:
+  test-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: escrow_test
+    ports:
+      - '5433:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U testuser -d escrow_test']
+      interval: 5s
+      timeout: 5s
+      retries: 5
