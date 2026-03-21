@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users      User[]
+  technicians Technician[]
+  customers  Customer[]
+  workOrders WorkOrder[]
+  routes     Route[]
+  invoices   Invoice[]
+  gpsEvents  GpsEvent[]
+
+  @@map("companies")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String
+  name      String
+  role      String   @default("user")
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([email, companyId])
+  @@map("users")
+}
+
+model Technician {
+  id           String   @id @default(uuid())
+  name         String
+  email        String
+  phone        String?
+  lat          Float
+  lng          Float
+  skills       String[]
+  availability String   @default("AVAILABLE")
+  companyId    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workOrders WorkOrder[]
+  routes     Route[]
+  gpsEvents  GpsEvent[]
+
+  @@unique([email, companyId])
+  @@map("technicians")
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  lat       Float
+  lng       Float
+  address   String
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workOrders WorkOrder[]
+
+  @@unique([email, companyId])
+  @@map("customers")
+}
+
+enum WorkOrderStatus {
+  CREATED
+  ASSIGNED
+  EN_ROUTE
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  INVOICED
+  PAID
+  CLOSED
+}
+
+model WorkOrder {
+  id           String          @id @default(uuid())
+  title        String
+  description  String?
+  status       WorkOrderStatus @default(CREATED)
+  priority     Int             @default(0)
+  scheduledAt  DateTime?
+  completedAt  DateTime?
+  customerId   String
+  technicianId String?
+  companyId    String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  technician Technician? @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+  invoices   Invoice[]
+
+  @@map("work_orders")
+}
+
+model Route {
+  id           String   @id @default(uuid())
+  name         String?
+  waypoints    Json
+  distance     Float?
+  technicianId String
+  companyId    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  technician Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@map("routes")
+}
+
+model Invoice {
+  id          String   @id @default(uuid())
+  amount      Float
+  description String?
+  workOrderId String
+  companyId   String
+  paidAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("invoices")
+}
+
+model GpsEvent {
+  id           String   @id @default(uuid())
+  lat          Float
+  lng          Float
+  timestamp    DateTime @default(now())
+  technicianId String
+  companyId    String
+  createdAt    DateTime @default(now())
+
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  technician Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@map("gps_events")
+}

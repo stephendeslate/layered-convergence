@@ -1,0 +1,13 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/disputes/[id]/page": "/disputes/[id]",
+  "/disputes/page": "/disputes",
+  "/page": "/",
+  "/payouts/page": "/payouts",
+  "/transactions/[id]/page": "/transactions/[id]",
+  "/transactions/create/page": "/transactions/create",
+  "/transactions/new/page": "/transactions/new",
+  "/transactions/page": "/transactions",
+  "/(auth)/login/page": "/login",
+  "/(auth)/register/page": "/register"
+}

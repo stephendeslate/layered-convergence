@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users            User[]
+  dataSources      DataSource[]
+  dataSourceConfigs DataSourceConfig[]
+  dataPoints       DataPoint[]
+  pipelines        Pipeline[]
+  syncRuns         SyncRun[]
+  dashboards       Dashboard[]
+  widgets          Widget[]
+  embedConfigs     EmbedConfig[]
+
+  @@map("tenants")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String
+  name      String
+  role      String   @default("viewer")
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([email, tenantId])
+  @@index([tenantId])
+  @@map("users")
+}
+
+model DataSource {
+  id        String   @id @default(uuid())
+  name      String
+  type      String
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  configs    DataSourceConfig[]
+  dataPoints DataPoint[]
+  pipelines  Pipeline[]
+
+  @@index([tenantId])
+  @@map("data_sources")
+}
+
+model DataSourceConfig {
+  id           String   @id @default(uuid())
+  key          String
+  value        String
+  encrypted    Boolean  @default(false)
+  dataSourceId String
+  tenantId     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([dataSourceId, key])
+  @@index([tenantId])
+  @@map("data_source_configs")
+}
+
+model DataPoint {
+  id           String   @id @default(uuid())
+  metric       String
+  value        Float
+  timestamp    DateTime
+  dimensions   Json     @default("{}")
+  dataSourceId String
+  tenantId     String
+  createdAt    DateTime @default(now())
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dataSourceId, metric, timestamp])
+  @@index([tenantId, metric, timestamp])
+  @@map("data_points")
+}
+
+enum PipelineStatus {
+  IDLE
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model Pipeline {
+  id           String         @id @default(uuid())
+  name         String
+  status       PipelineStatus @default(IDLE)
+  dataSourceId String
+  tenantId     String
+  lastRunAt    DateTime?
+  errorMessage String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  syncRuns   SyncRun[]
+
+  @@index([tenantId])
+  @@map("pipelines")
+}
+
+model SyncRun {
+  id          String    @id @default(uuid())
+  pipelineId  String
+  tenantId    String
+  status      String    @default("pending")
+  recordCount Int       @default(0)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  errorLog    String?
+  createdAt   DateTime  @default(now())
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([pipelineId])
+  @@map("sync_runs")
+}
+
+model Dashboard {
+  id        String   @id @default(uuid())
+  name      String
+  layout    Json     @default("[]")
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  widgets Widget[]
+
+  @@index([tenantId])
+  @@map("dashboards")
+}
+
+model Widget {
+  id          String   @id @default(uuid())
+  name        String
+  type        String
+  config      Json     @default("{}")
+  dashboardId String
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dashboardId])
+  @@map("widgets")
+}
+
+model EmbedConfig {
+  id            String   @id @default(uuid())
+  dashboardId   String
+  allowedOrigins String[] @default([])
+  expiresAt     DateTime?
+  token         String   @unique @default(uuid())
+  tenantId      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([token])
+  @@map("embed_configs")
+}

@@ -1,0 +1,13 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/disputes/[id]/page": "app/disputes/[id]/page.js",
+  "/disputes/page": "app/disputes/page.js",
+  "/page": "app/page.js",
+  "/payouts/page": "app/payouts/page.js",
+  "/transactions/[id]/page": "app/transactions/[id]/page.js",
+  "/transactions/create/page": "app/transactions/create/page.js",
+  "/transactions/new/page": "app/transactions/new/page.js",
+  "/transactions/page": "app/transactions/page.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/(auth)/register/page": "app/(auth)/register/page.js"
+}
