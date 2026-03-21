@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// TRACED: EM-DA-MAP-001 — @@map on ALL models AND enums
+
+enum Role {
+  OWNER
+  ADMIN
+  BUYER
+  SELLER
+
+  @@map("role")
+}
+
+enum TransactionStatus {
+  INITIATED
+  FUNDED
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  DISPUTED
+  REFUNDED
+  CANCELLED
+
+  @@map("transaction_status")
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  SOLD
+  ARCHIVED
+
+  @@map("listing_status")
+}
+
+model Tenant {
+  id           String        @id @default(uuid())
+  name         String
+  slug         String        @unique
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  users        User[]
+  listings     Listing[]
+  transactions Transaction[]
+  disputes     Dispute[]
+  auditLogs    AuditLog[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  role         Role     @default(BUYER)
+  tenantId     String   @map("tenant_id")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt    DateTime @default(now()) @map("created_at")
+  listings     Listing[]
+  purchases    Transaction[] @relation("BuyerTransactions")
+
+  @@map("users")
+}
+
+model Listing {
+  id           String        @id @default(uuid())
+  title        String
+  slug         String
+  description  String        @default("")
+  price        Float
+  status       ListingStatus @default(DRAFT)
+  sellerId     String        @map("seller_id")
+  seller       User          @relation(fields: [sellerId], references: [id])
+  tenantId     String        @map("tenant_id")
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  transactions Transaction[]
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@map("listings")
+}
+
+model Transaction {
+  id        String            @id @default(uuid())
+  listingId String            @map("listing_id")
+  listing   Listing           @relation(fields: [listingId], references: [id])
+  buyerId   String            @map("buyer_id")
+  buyer     User              @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  amount    Float
+  status    TransactionStatus @default(INITIATED)
+  tenantId  String            @map("tenant_id")
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  dispute   Dispute?
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  @@map("transactions")
+}
+
+model Dispute {
+  id            String      @id @default(uuid())
+  transactionId String      @unique @map("transaction_id")
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  reason        String
+  resolution    String?
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@map("disputes")
+}
+
+model EscrowAccount {
+  id        String   @id @default(uuid())
+  balance   Float    @default(0)
+  currency  String   @default("USD")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("escrow_accounts")
+}
+
+model PaymentMethod {
+  id        String   @id @default(uuid())
+  type      String
+  last4     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("payment_methods")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  tenantId  String   @map("tenant_id")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}

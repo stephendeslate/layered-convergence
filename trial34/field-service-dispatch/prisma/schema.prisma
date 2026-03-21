@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// TRACED: FD-DA-MAP-001 — map directives on ALL models AND enums
+
+enum Role {
+  OWNER
+  ADMIN
+  DISPATCHER
+  TECHNICIAN
+
+  @@map("role")
+}
+
+enum WorkOrderStatus {
+  CREATED
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ESCALATED
+  ON_HOLD
+
+  @@map("work_order_status")
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+
+  @@map("priority")
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  ON_JOB
+  OFF_DUTY
+  ON_LEAVE
+
+  @@map("availability_status")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  users     User[]
+  workOrders WorkOrder[]
+  technicians Technician[]
+  serviceAreas ServiceArea[]
+  equipment  Equipment[]
+  auditLogs  AuditLog[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  role         Role     @default(TECHNICIAN)
+  tenantId     String   @map("tenant_id")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model WorkOrder {
+  id          String          @id @default(uuid())
+  title       String
+  slug        String
+  description String          @default("")
+  priority    Priority        @default(MEDIUM)
+  status      WorkOrderStatus @default(CREATED)
+  tenantId    String          @map("tenant_id")
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  assignedToId String?        @map("assigned_to_id")
+  assignedTo  Technician?     @relation(fields: [assignedToId], references: [id])
+  transitions WorkOrderTransition[]
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@map("work_orders")
+}
+
+model WorkOrderTransition {
+  id          String   @id @default(uuid())
+  workOrderId String   @map("work_order_id")
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+  fromStatus  String   @map("from_status")
+  toStatus    String   @map("to_status")
+  changedBy   String   @map("changed_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("work_order_transitions")
+}
+
+model Technician {
+  id             String             @id @default(uuid())
+  name           String
+  slug           String
+  specialization String
+  availability   AvailabilityStatus @default(AVAILABLE)
+  latitude       Decimal?           @db.Decimal(10, 7)
+  longitude      Decimal?           @db.Decimal(10, 7)
+  tenantId       String             @map("tenant_id")
+  tenant         Tenant             @relation(fields: [tenantId], references: [id])
+  workOrders     WorkOrder[]
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  @@map("technicians")
+}
+
+model ServiceArea {
+  id        String   @id @default(uuid())
+  name      String
+  latitude  Decimal  @db.Decimal(10, 7)
+  longitude Decimal  @db.Decimal(10, 7)
+  radius    Decimal  @db.Decimal(10, 2)
+  tenantId  String   @map("tenant_id")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("service_areas")
+}
+
+model Equipment {
+  id         String   @id @default(uuid())
+  name       String
+  serialNumber String @map("serial_number")
+  tenantId   String   @map("tenant_id")
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("equipment")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  tenantId  String   @map("tenant_id")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}

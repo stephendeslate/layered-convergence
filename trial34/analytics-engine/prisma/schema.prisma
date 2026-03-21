@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// TRACED: AE-DA-MAP-001 — @@map on ALL models AND enums
+
+enum Role {
+  OWNER
+  ADMIN
+  ANALYST
+  VIEWER
+
+  @@map("role")
+}
+
+enum PipelineStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+
+  @@map("pipeline_status")
+}
+
+enum WidgetType {
+  CHART
+  TABLE
+  METRIC
+  MAP
+
+  @@map("widget_type")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  users     User[]
+  dashboards Dashboard[]
+  pipelines  Pipeline[]
+  auditLogs  AuditLog[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  role         Role     @default(VIEWER)
+  tenantId     String   @map("tenant_id")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt    DateTime @default(now()) @map("created_at")
+  dashboards   Dashboard[] @relation("CreatedByUser")
+
+  @@map("users")
+}
+
+model Dashboard {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String
+  description String   @default("")
+  tenantId    String   @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  createdById String   @map("created_by_id")
+  createdBy   User     @relation("CreatedByUser", fields: [createdById], references: [id])
+  widgets     Widget[]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("dashboards")
+}
+
+model Widget {
+  id          String     @id @default(uuid())
+  name        String
+  type        WidgetType @default(CHART)
+  config      Json       @default("{}")
+  dashboardId String     @map("dashboard_id")
+  dashboard   Dashboard  @relation(fields: [dashboardId], references: [id])
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  @@map("widgets")
+}
+
+model DataSource {
+  id        String   @id @default(uuid())
+  name      String
+  type      String
+  config    Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("data_sources")
+}
+
+model Pipeline {
+  id        String         @id @default(uuid())
+  name      String
+  slug      String
+  config    Json           @default("{}")
+  status    PipelineStatus @default(PENDING)
+  tenantId  String         @map("tenant_id")
+  tenant    Tenant         @relation(fields: [tenantId], references: [id])
+  runs      PipelineRun[]
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  @@map("pipelines")
+}
+
+model PipelineRun {
+  id          String         @id @default(uuid())
+  pipelineId  String         @map("pipeline_id")
+  pipeline    Pipeline       @relation(fields: [pipelineId], references: [id])
+  status      PipelineStatus @default(PENDING)
+  startedAt   DateTime       @default(now()) @map("started_at")
+  completedAt DateTime?      @map("completed_at")
+  errorLog    String?        @map("error_log")
+
+  @@map("pipeline_runs")
+}
+
+model Report {
+  id        String   @id @default(uuid())
+  name      String
+  schedule  String?
+  lastRunAt DateTime? @map("last_run_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("reports")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  tenantId  String   @map("tenant_id")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
