@@ -10,3 +10,4 @@ node_modules/
 **/METHODOLOGY_NOTES.md
 METHODOLOGY_ADDENDUM_*.md
 TRIAL_PROTOCOL.md
+.claude/
