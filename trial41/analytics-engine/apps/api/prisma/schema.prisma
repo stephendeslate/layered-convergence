@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN  @map("admin")
+  USER   @map("user")
+  VIEWER @map("viewer")
+  EDITOR @map("editor")
+
+  @@map("user_role")
+}
+
+enum EventStatus {
+  PENDING    @map("pending")
+  PROCESSING @map("processing")
+  COMPLETED  @map("completed")
+  FAILED     @map("failed")
+
+  @@map("event_status")
+}
+
+enum PipelineStatus {
+  ACTIVE   @map("active")
+  PAUSED   @map("paused")
+  ERROR    @map("error")
+  DISABLED @map("disabled")
+
+  @@map("pipeline_status")
+}
+
+enum DataSourceType {
+  DATABASE @map("database")
+  API      @map("api")
+  FILE     @map("file")
+  STREAM   @map("stream")
+
+  @@map("data_source_type")
+}
+
+model Tenant {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  name      String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users       User[]
+  events      Event[]
+  dashboards  Dashboard[]
+  dataSources DataSource[]
+  pipelines   Pipeline[]
+
+  @@map("tenants")
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  name      String   @db.VarChar(255)
+  role      UserRole @default(USER)
+  tenantId  String   @map("tenant_id") @db.VarChar(36)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  dashboards Dashboard[]
+
+  @@index([tenantId])
+  @@index([email])
+  @@map("users")
+}
+
+model Event {
+  id            String      @id @default(uuid()) @db.VarChar(36)
+  name          String      @db.VarChar(255)
+  description   String?     @db.VarChar(2000)
+  status        EventStatus @default(PENDING)
+  payload       Json?
+  cost          Decimal     @default(0) @db.Decimal(12, 2)
+  tenantId      String      @map("tenant_id") @db.VarChar(36)
+  dataSourceId  String?     @map("data_source_id") @db.VarChar(36)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  dataSource DataSource? @relation(fields: [dataSourceId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([tenantId, status])
+  @@index([dataSourceId])
+  @@map("events")
+}
+
+model Dashboard {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  name        String   @db.VarChar(255)
+  description String?  @db.VarChar(2000)
+  config      Json?
+  isPublic    Boolean  @default(false) @map("is_public")
+  tenantId    String   @map("tenant_id") @db.VarChar(36)
+  ownerId     String   @map("owner_id") @db.VarChar(36)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  owner  User   @relation(fields: [ownerId], references: [id])
+
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([tenantId, isPublic])
+  @@map("dashboards")
+}
+
+model DataSource {
+  id          String         @id @default(uuid()) @db.VarChar(36)
+  name        String         @db.VarChar(255)
+  description String?        @db.VarChar(2000)
+  type        DataSourceType
+  connectionUrl String?      @map("connection_url") @db.VarChar(2048)
+  cost        Decimal        @default(0) @db.Decimal(12, 2)
+  isActive    Boolean        @default(true) @map("is_active")
+  tenantId    String         @map("tenant_id") @db.VarChar(36)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  events    Event[]
+  pipelines Pipeline[]
+
+  @@index([tenantId])
+  @@index([type])
+  @@index([tenantId, isActive])
+  @@map("data_sources")
+}
+
+model Pipeline {
+  id           String         @id @default(uuid()) @db.VarChar(36)
+  name         String         @db.VarChar(255)
+  description  String?        @db.VarChar(2000)
+  status       PipelineStatus @default(ACTIVE)
+  config       Json?
+  cost         Decimal        @default(0) @db.Decimal(12, 2)
+  tenantId     String         @map("tenant_id") @db.VarChar(36)
+  dataSourceId String?        @map("data_source_id") @db.VarChar(36)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  dataSource DataSource? @relation(fields: [dataSourceId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([tenantId, status])
+  @@index([dataSourceId])
+  @@map("pipelines")
+}

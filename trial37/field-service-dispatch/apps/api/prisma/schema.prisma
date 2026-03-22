@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users       User[]
+  workOrders  WorkOrder[]
+  technicians Technician[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String
+  passwordHash String   @map("password_hash")
+  role         UserRole
+  tenantId     String   @map("tenant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  workOrders WorkOrder[]
+
+  @@unique([email, tenantId])
+  @@map("users")
+}
+
+// WorkOrder model with GPS Decimal(10,7)
+model WorkOrder {
+  id          String            @id
+  title       String
+  description String?
+  status      WorkOrderStatus   @default(OPEN)
+  priority    WorkOrderPriority @default(MEDIUM)
+  latitude    Decimal?          @db.Decimal(10, 7)
+  longitude   Decimal?          @db.Decimal(10, 7)
+  tenantId    String            @map("tenant_id")
+  createdById String            @map("created_by_id")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  createdBy User       @relation(fields: [createdById], references: [id])
+  schedules Schedule[]
+
+  @@map("work_orders")
+}
+
+model Technician {
+  id        String           @id
+  name      String
+  status    TechnicianStatus @default(AVAILABLE)
+  latitude  Decimal          @db.Decimal(10, 7)
+  longitude Decimal          @db.Decimal(10, 7)
+  tenantId  String           @map("tenant_id")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  schedules Schedule[]
+
+  @@map("technicians")
+}
+
+model Schedule {
+  id           String   @id @default(uuid())
+  workOrderId  String   @map("work_order_id")
+  technicianId String   @map("technician_id")
+  scheduledAt  DateTime @map("scheduled_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  workOrder  WorkOrder  @relation(fields: [workOrderId], references: [id])
+  technician Technician @relation(fields: [technicianId], references: [id])
+
+  @@map("schedules")
+}
+
+enum UserRole {
+  ADMIN      @map("admin")
+  DISPATCHER @map("dispatcher")
+  TECHNICIAN @map("technician")
+  VIEWER     @map("viewer")
+
+  @@map("user_role")
+}
+
+enum WorkOrderStatus {
+  OPEN        @map("open")
+  ASSIGNED    @map("assigned")
+  IN_PROGRESS @map("in_progress")
+  COMPLETED   @map("completed")
+  CANCELLED   @map("cancelled")
+  FAILED      @map("failed")
+
+  @@map("work_order_status")
+}
+
+enum WorkOrderPriority {
+  LOW    @map("low")
+  MEDIUM @map("medium")
+  HIGH   @map("high")
+  URGENT @map("urgent")
+
+  @@map("work_order_priority")
+}
+
+enum TechnicianStatus {
+  AVAILABLE @map("available")
+  BUSY      @map("busy")
+  OFF_DUTY  @map("off_duty")
+  INACTIVE  @map("inactive")
+
+  @@map("technician_status")
+}

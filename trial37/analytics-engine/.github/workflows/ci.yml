@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: analytics_test
+          POSTGRES_PASSWORD: analytics_test
+          POSTGRES_DB: analytics_engine_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U analytics_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Security audit
+        run: pnpm audit --audit-level=high
+
+      - name: Generate Prisma client
+        run: pnpm --filter api exec prisma generate
+
+      - name: Lint
+        run: pnpm turbo run lint
+
+      - name: Test
+        run: pnpm turbo run test
+        env:
+          DATABASE_URL: "postgresql://analytics_test:analytics_test@localhost:5433/analytics_engine_test?schema=public"
+          JWT_SECRET: "ci-test-secret-not-for-production"
+
+      - name: Build
+        run: pnpm turbo run build
+
+      - name: Typecheck
+        run: pnpm turbo run typecheck
+
+      - name: Migration check
+        run: pnpm --filter api exec prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code
+        env:
+          DATABASE_URL: "postgresql://analytics_test:analytics_test@localhost:5433/analytics_engine_test?schema=public"

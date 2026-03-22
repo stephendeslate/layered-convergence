@@ -1,0 +1,179 @@
+// Prisma schema with Decimal money fields and snake_case mapping
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN  @map("admin")
+  BUYER  @map("buyer")
+  SELLER @map("seller")
+
+  @@map("role")
+}
+
+enum ListingStatus {
+  ACTIVE    @map("active")
+  SOLD      @map("sold")
+  CANCELLED @map("cancelled")
+  SUSPENDED @map("suspended")
+
+  @@map("listing_status")
+}
+
+enum TransactionStatus {
+  PENDING    @map("pending")
+  IN_ESCROW  @map("in_escrow")
+  COMPLETED  @map("completed")
+  CANCELLED  @map("cancelled")
+  DISPUTED   @map("disputed")
+
+  @@map("transaction_status")
+}
+
+enum EscrowStatus {
+  HOLDING    @map("holding")
+  RELEASED   @map("released")
+  REFUNDED   @map("refunded")
+  DISPUTED   @map("disputed")
+
+  @@map("escrow_status")
+}
+
+enum DisputeStatus {
+  OPEN       @map("open")
+  REVIEWING  @map("reviewing")
+  RESOLVED   @map("resolved")
+  ESCALATED  @map("escalated")
+  CLOSED     @map("closed")
+
+  @@map("dispute_status")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users        User[]
+  listings     Listing[]
+  transactions Transaction[]
+  escrows      Escrow[]
+  disputes     Dispute[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(BUYER)
+  tenantId     String   @map("tenant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant              Tenant        @relation(fields: [tenantId], references: [id])
+  listings            Listing[]
+  buyerTransactions   Transaction[] @relation("BuyerTransactions")
+  sellerTransactions  Transaction[] @relation("SellerTransactions")
+  filedDisputes       Dispute[]     @relation("DisputeFiler")
+  respondedDisputes   Dispute[]     @relation("DisputeRespondent")
+
+  @@index([tenantId])
+  @@index([email])
+  @@map("users")
+}
+
+model Listing {
+  id          String        @id @default(uuid())
+  title       String
+  description String
+  price       Decimal       @db.Decimal(12, 2)
+  status      ListingStatus @default(ACTIVE)
+  sellerId    String        @map("seller_id")
+  tenantId    String        @map("tenant_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  seller       User          @relation(fields: [sellerId], references: [id])
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  transactions Transaction[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([sellerId, status])
+  @@map("listings")
+}
+
+model Transaction {
+  id        String            @id @default(uuid())
+  amount    Decimal           @db.Decimal(12, 2)
+  status    TransactionStatus @default(PENDING)
+  buyerId   String            @map("buyer_id")
+  sellerId  String            @map("seller_id")
+  listingId String            @map("listing_id")
+  tenantId  String            @map("tenant_id")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  buyer    User     @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  seller   User     @relation("SellerTransactions", fields: [sellerId], references: [id])
+  listing  Listing  @relation(fields: [listingId], references: [id])
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  escrow   Escrow?
+  disputes Dispute[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([buyerId, status])
+  @@index([sellerId, status])
+  @@map("transactions")
+}
+
+model Escrow {
+  id            String       @id @default(uuid())
+  amount        Decimal      @db.Decimal(12, 2)
+  balance       Decimal      @db.Decimal(12, 2)
+  status        EscrowStatus @default(HOLDING)
+  transactionId String       @unique @map("transaction_id")
+  tenantId      String       @map("tenant_id")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("escrows")
+}
+
+model Dispute {
+  id            String        @id @default(uuid())
+  reason        String
+  resolution    String?
+  status        DisputeStatus @default(OPEN)
+  transactionId String        @map("transaction_id")
+  filerId       String        @map("filer_id")
+  respondentId  String        @map("respondent_id")
+  tenantId      String        @map("tenant_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  filer       User        @relation("DisputeFiler", fields: [filerId], references: [id])
+  respondent  User        @relation("DisputeRespondent", fields: [respondentId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([transactionId])
+  @@map("disputes")
+}

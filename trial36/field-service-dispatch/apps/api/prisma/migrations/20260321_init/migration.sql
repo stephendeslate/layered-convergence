@@ -1,0 +1,90 @@
+-- TRACED: FD-MIG-001 — Initial migration for field service dispatch
+
+-- CreateEnum
+CREATE TYPE "user_role" AS ENUM ('ADMIN', 'DISPATCHER', 'TECHNICIAN', 'VIEWER');
+CREATE TYPE "work_order_status" AS ENUM ('OPEN', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'FAILED');
+CREATE TYPE "work_order_priority" AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'URGENT');
+CREATE TYPE "technician_status" AS ENUM ('AVAILABLE', 'BUSY', 'OFF_DUTY', 'INACTIVE');
+
+-- CreateTable
+CREATE TABLE "tenants" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "name" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT "tenants_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "tenants_slug_key" ON "tenants"("slug");
+
+CREATE TABLE "users" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "email" TEXT NOT NULL,
+    "password_hash" TEXT NOT NULL,
+    "role" "user_role" NOT NULL,
+    "tenant_id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT "users_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "users_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id")
+);
+
+CREATE UNIQUE INDEX "users_email_tenant_id_key" ON "users"("email", "tenant_id");
+
+CREATE TABLE "work_orders" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "status" "work_order_status" NOT NULL DEFAULT 'OPEN',
+    "priority" "work_order_priority" NOT NULL DEFAULT 'MEDIUM',
+    "latitude" DECIMAL(10, 7),
+    "longitude" DECIMAL(10, 7),
+    "tenant_id" UUID NOT NULL,
+    "created_by_id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT "work_orders_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "work_orders_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id"),
+    CONSTRAINT "work_orders_created_by_id_fkey" FOREIGN KEY ("created_by_id") REFERENCES "users"("id")
+);
+
+CREATE TABLE "technicians" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "status" "technician_status" NOT NULL DEFAULT 'AVAILABLE',
+    "latitude" DECIMAL(10, 7) NOT NULL,
+    "longitude" DECIMAL(10, 7) NOT NULL,
+    "tenant_id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT "technicians_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "technicians_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id")
+);
+
+CREATE TABLE "schedules" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "work_order_id" TEXT NOT NULL,
+    "technician_id" TEXT NOT NULL,
+    "scheduled_at" TIMESTAMPTZ NOT NULL,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT "schedules_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "schedules_work_order_id_fkey" FOREIGN KEY ("work_order_id") REFERENCES "work_orders"("id"),
+    CONSTRAINT "schedules_technician_id_fkey" FOREIGN KEY ("technician_id") REFERENCES "technicians"("id")
+);
+
+-- TRACED: FD-MIG-002 — Row Level Security on all tables
+ALTER TABLE "tenants" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "tenants" FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE "users" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "users" FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE "work_orders" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "work_orders" FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE "technicians" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "technicians" FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE "schedules" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "schedules" FORCE ROW LEVEL SECURITY;

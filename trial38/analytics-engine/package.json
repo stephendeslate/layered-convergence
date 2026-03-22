@@ -1,0 +1,19 @@
+{
+  "name": "analytics-engine",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "db:migrate": "pnpm --filter api exec prisma migrate dev",
+    "db:seed": "pnpm --filter api exec prisma db seed",
+    "db:generate": "pnpm --filter api exec prisma generate"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0"
+  }
+}

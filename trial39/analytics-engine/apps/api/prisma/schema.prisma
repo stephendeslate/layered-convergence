@@ -1,0 +1,143 @@
+// Prisma schema with 6 models, @@map, @@index, composites
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN  @map("admin")
+  EDITOR @map("editor")
+  VIEWER @map("viewer")
+
+  @@map("user_role")
+}
+
+enum PipelineStatus {
+  IDLE      @map("idle")
+  RUNNING   @map("running")
+  COMPLETED @map("completed")
+  FAILED    @map("failed")
+
+  @@map("pipeline_status")
+}
+
+enum RunStatus {
+  PENDING     @map("pending")
+  IN_PROGRESS @map("in_progress")
+  SUCCESS     @map("success")
+  FAILURE     @map("failure")
+  TIMED_OUT   @map("timed_out")
+
+  @@map("run_status")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(200)
+  slug      String   @unique @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users      User[]
+  dashboards Dashboard[]
+  pipelines  Pipeline[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  displayName  String   @map("display_name") @db.VarChar(150)
+  role         UserRole @default(VIEWER)
+  tenantId     String   @map("tenant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dashboards Dashboard[]
+  reports    Report[]
+
+  @@index([tenantId])
+  @@index([email])
+  @@map("users")
+}
+
+model Dashboard {
+  id          String   @id @default(uuid())
+  title       String   @db.VarChar(200)
+  description String?  @db.Text
+  isPublic    Boolean  @default(false) @map("is_public")
+  tenantId    String   @map("tenant_id")
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User    @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  reports   Report[]
+
+  @@index([tenantId])
+  @@index([createdById])
+  @@index([tenantId, isPublic])
+  @@map("dashboards")
+}
+
+model Pipeline {
+  id          String         @id @default(uuid())
+  name        String         @db.VarChar(200)
+  description String?        @db.Text
+  status      PipelineStatus @default(IDLE)
+  schedule    String?        @db.VarChar(50)
+  tenantId    String         @map("tenant_id")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  runs   PipelineRun[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([tenantId, status])
+  @@map("pipelines")
+}
+
+model PipelineRun {
+  id         String    @id @default(uuid())
+  status     RunStatus @default(PENDING)
+  startedAt  DateTime? @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  errorMsg   String?   @map("error_msg") @db.Text
+  pipelineId String    @map("pipeline_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  @@index([pipelineId])
+  @@index([status])
+  @@index([pipelineId, status])
+  @@map("pipeline_runs")
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  title       String   @db.VarChar(200)
+  content     String?  @db.Text
+  format      String   @default("pdf") @db.VarChar(20)
+  dashboardId String   @map("dashboard_id")
+  generatedBy String   @map("generated_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [generatedBy], references: [id], onDelete: Cascade)
+
+  @@index([dashboardId])
+  @@index([generatedBy])
+  @@map("reports")
+}

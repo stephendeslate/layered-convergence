@@ -1,0 +1,182 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN       @map("admin")
+  USER        @map("user")
+  TECHNICIAN  @map("technician")
+  DISPATCHER  @map("dispatcher")
+
+  @@map("user_role")
+}
+
+enum WorkOrderStatus {
+  PENDING     @map("pending")
+  ASSIGNED    @map("assigned")
+  IN_PROGRESS @map("in_progress")
+  COMPLETED   @map("completed")
+  CANCELLED   @map("cancelled")
+  FAILED      @map("failed")
+
+  @@map("work_order_status")
+}
+
+enum TechnicianStatus {
+  AVAILABLE     @map("available")
+  ON_ASSIGNMENT @map("on_assignment")
+  OFF_DUTY      @map("off_duty")
+  SUSPENDED     @map("suspended")
+
+  @@map("technician_status")
+}
+
+enum ScheduleStatus {
+  SCHEDULED   @map("scheduled")
+  IN_PROGRESS @map("in_progress")
+  COMPLETED   @map("completed")
+  CANCELLED   @map("cancelled")
+
+  @@map("schedule_status")
+}
+
+enum Priority {
+  LOW      @map("low")
+  MEDIUM   @map("medium")
+  HIGH     @map("high")
+  URGENT   @map("urgent")
+  CRITICAL @map("critical")
+
+  @@map("priority")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users        User[]
+  workOrders   WorkOrder[]
+  technicians  Technician[]
+  schedules    Schedule[]
+  serviceAreas ServiceArea[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(USER)
+  tenantId     String   @map("tenant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([email])
+  @@map("users")
+}
+
+model WorkOrder {
+  id            String          @id @default(uuid())
+  title         String
+  description   String
+  status        WorkOrderStatus @default(PENDING)
+  priority      Priority        @default(MEDIUM)
+  latitude      Decimal         @db.Decimal(10, 7)
+  longitude     Decimal         @db.Decimal(10, 7)
+  address       String
+  tenantId      String          @map("tenant_id")
+  technicianId  String?         @map("technician_id")
+  scheduledDate DateTime?       @map("scheduled_date")
+  completedDate DateTime?       @map("completed_date")
+  notes         String?
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  technician Technician? @relation(fields: [technicianId], references: [id])
+  schedules  Schedule[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([tenantId, status])
+  @@index([technicianId])
+  @@map("work_orders")
+}
+
+model Technician {
+  id           String           @id @default(uuid())
+  name         String
+  email        String           @unique
+  phone        String
+  status       TechnicianStatus @default(AVAILABLE)
+  specialties  String[]
+  latitude     Decimal          @db.Decimal(10, 7)
+  longitude    Decimal          @db.Decimal(10, 7)
+  tenantId     String           @map("tenant_id")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  workOrders WorkOrder[]
+  schedules  Schedule[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([tenantId, status])
+  @@map("technicians")
+}
+
+model Schedule {
+  id           String         @id @default(uuid())
+  startTime    DateTime       @map("start_time")
+  endTime      DateTime       @map("end_time")
+  status       ScheduleStatus @default(SCHEDULED)
+  tenantId     String         @map("tenant_id")
+  technicianId String         @map("technician_id")
+  workOrderId  String         @map("work_order_id")
+  notes        String?
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  technician Technician @relation(fields: [technicianId], references: [id])
+  workOrder  WorkOrder  @relation(fields: [workOrderId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([tenantId, status])
+  @@index([technicianId])
+  @@index([workOrderId])
+  @@map("schedules")
+}
+
+model ServiceArea {
+  id        String  @id @default(uuid())
+  name      String
+  zipCodes  String[] @map("zip_codes")
+  latitude  Decimal @db.Decimal(10, 7)
+  longitude Decimal @db.Decimal(10, 7)
+  radius    Decimal @db.Decimal(10, 2)
+  active    Boolean @default(true)
+  tenantId  String  @map("tenant_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([active])
+  @@index([tenantId, active])
+  @@map("service_areas")
+}

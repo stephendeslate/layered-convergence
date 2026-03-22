@@ -1,0 +1,4 @@
+# TRACED: AE-ARCH-001
+packages:
+  - "apps/*"
+  - "packages/*"

@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN    @map("admin")
+  MANAGER  @map("manager")
+  SELLER   @map("seller")
+  BUYER    @map("buyer")
+
+  @@map("user_role")
+}
+
+enum ListingStatus {
+  ACTIVE     @map("active")
+  SOLD       @map("sold")
+  CANCELLED  @map("cancelled")
+  SUSPENDED  @map("suspended")
+
+  @@map("listing_status")
+}
+
+enum TransactionStatus {
+  PENDING    @map("pending")
+  COMPLETED  @map("completed")
+  DISPUTED   @map("disputed")
+  REFUNDED   @map("refunded")
+  FAILED     @map("failed")
+
+  @@map("transaction_status")
+}
+
+enum DisputeStatus {
+  OPEN          @map("open")
+  UNDER_REVIEW  @map("under_review")
+  RESOLVED      @map("resolved")
+  DISMISSED     @map("dismissed")
+
+  @@map("dispute_status")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users        User[]
+  listings     Listing[]
+  transactions Transaction[]
+  escrows      EscrowAccount[]
+  disputes     Dispute[]
+
+  @@map("tenants")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String
+  password  String
+  name      String
+  role      UserRole @default(BUYER)
+  balance   Decimal  @default(0) @db.Decimal(12, 2)
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant             Tenant        @relation(fields: [tenantId], references: [id])
+  sellerListings     Listing[]     @relation("SellerListings")
+  buyerTransactions  Transaction[] @relation("BuyerTransactions")
+  sellerTransactions Transaction[] @relation("SellerTransactions")
+
+  @@unique([email, tenantId])
+  @@index([tenantId])
+  @@index([email, tenantId])
+  @@map("users")
+}
+
+model Listing {
+  id          String        @id @default(uuid())
+  title       String
+  slug        String
+  description String
+  price       Decimal       @db.Decimal(12, 2)
+  status      ListingStatus @default(ACTIVE)
+  sellerId    String        @map("seller_id")
+  tenantId    String        @map("tenant_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  seller       User          @relation("SellerListings", fields: [sellerId], references: [id])
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  transactions Transaction[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([sellerId])
+  @@map("listings")
+}
+
+model Transaction {
+  id        String            @id @default(uuid())
+  amount    Decimal           @db.Decimal(12, 2)
+  status    TransactionStatus @default(PENDING)
+  buyerId   String            @map("buyer_id")
+  sellerId  String            @map("seller_id")
+  listingId String            @map("listing_id")
+  tenantId  String            @map("tenant_id")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  buyer         User           @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  seller        User           @relation("SellerTransactions", fields: [sellerId], references: [id])
+  listing       Listing        @relation(fields: [listingId], references: [id])
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  escrowAccount EscrowAccount?
+  disputes      Dispute[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([buyerId])
+  @@index([sellerId])
+  @@map("transactions")
+}
+
+model EscrowAccount {
+  id            String   @id @default(uuid())
+  amount        Decimal  @db.Decimal(12, 2)
+  transactionId String   @unique @map("transaction_id")
+  tenantId      String   @map("tenant_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("escrow_accounts")
+}
+
+model Dispute {
+  id            String        @id @default(uuid())
+  reason        String
+  status        DisputeStatus @default(OPEN)
+  transactionId String        @map("transaction_id")
+  tenantId      String        @map("tenant_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([transactionId])
+  @@map("disputes")
+}

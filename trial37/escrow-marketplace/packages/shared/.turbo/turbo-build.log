@@ -1,0 +1,5 @@
+
+> @escrow-marketplace/shared@0.0.1 build /home/stephen/projects/layered-convergence/trial37/escrow-marketplace/packages/shared
+> tsc
+
+src/index.ts(203,10): error TS2304: Cannot find name 'crypto'.

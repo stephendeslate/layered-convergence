@@ -1,0 +1,7 @@
+
+> @field-service-dispatch/shared@1.0.0 build /home/stephen/projects/layered-convergence/trial37/field-service-dispatch/packages/shared
+> tsc
+
+sh: 1: tsc: not found
+ ELIFECYCLE  Command failed.
+ WARN   Local package.json exists, but node_modules missing, did you mean to install?

@@ -1,0 +1,143 @@
+// TRACED: AE-DB-005
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN    @map("admin")
+  MANAGER  @map("manager")
+  ANALYST  @map("analyst")
+  VIEWER   @map("viewer")
+
+  @@map("user_role")
+}
+
+enum PipelineStatus {
+  ACTIVE    @map("active")
+  PAUSED    @map("paused")
+  FAILED    @map("failed")
+  COMPLETED @map("completed")
+
+  @@map("pipeline_status")
+}
+
+enum ReportStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+  FAILED    @map("failed")
+  ARCHIVED  @map("archived")
+
+  @@map("report_status")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users      User[]
+  dashboards Dashboard[]
+  pipelines  Pipeline[]
+  reports    Report[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  email        String   @unique
+  name         String
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(VIEWER)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dashboards Dashboard[]
+  pipelines  Pipeline[]
+  reports    Report[]
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model Dashboard {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  description String?
+  config      Json     @default("{}")
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id])
+
+  @@index([tenantId])
+  @@map("dashboards")
+}
+
+model Pipeline {
+  id          String         @id @default(uuid())
+  tenantId    String         @map("tenant_id")
+  name        String
+  description String?
+  status      PipelineStatus @default(ACTIVE)
+  schedule    String?
+  config      Json           @default("{}")
+  createdById String         @map("created_by_id")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User          @relation(fields: [createdById], references: [id])
+  runs      PipelineRun[]
+
+  @@index([tenantId])
+  @@map("pipelines")
+}
+
+model PipelineRun {
+  id               String         @id @default(uuid())
+  pipelineId       String         @map("pipeline_id")
+  status           PipelineStatus @default(ACTIVE)
+  startedAt        DateTime       @default(now()) @map("started_at")
+  completedAt      DateTime?      @map("completed_at")
+  errorMessage     String?        @map("error_message")
+  recordsProcessed Int            @default(0) @map("records_processed")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  @@index([pipelineId])
+  @@map("pipeline_runs")
+}
+
+model Report {
+  id           String       @id @default(uuid())
+  tenantId     String       @map("tenant_id")
+  name         String
+  description  String?
+  status       ReportStatus @default(DRAFT)
+  config       Json         @default("{}")
+  generatedAt  DateTime?    @map("generated_at")
+  errorMessage String?      @map("error_message")
+  createdById  String       @map("created_by_id")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id])
+
+  @@index([tenantId])
+  @@map("reports")
+}

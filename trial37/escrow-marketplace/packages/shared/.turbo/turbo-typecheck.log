@@ -1,0 +1,6 @@
+
+> @escrow-marketplace/shared@0.0.1 typecheck /home/stephen/projects/layered-convergence/trial37/escrow-marketplace/packages/shared
+> tsc --noEmit
+
+src/index.ts(203,10): error TS2304: Cannot find name 'crypto'.
+ ELIFECYCLE  Command failed with exit code 2.

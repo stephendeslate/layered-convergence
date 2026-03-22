@@ -1,0 +1,49 @@
+# TRACED: AE-INFRA-002
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: analytics_engine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      target: production
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/analytics_engine?schema=public"
+      JWT_SECRET: "${JWT_SECRET}"
+      CORS_ORIGIN: "http://localhost:3000"
+      RATE_LIMIT_TTL: "60000"
+      RATE_LIMIT_MAX: "100"
+      NODE_ENV: "production"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      target: production
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: "http://api:3001"
+    depends_on:
+      - api
+    command: ["node", "apps/web/.next/standalone/server.js"]
+
+volumes:
+  postgres_data:
