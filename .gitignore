@@ -2,14 +2,16 @@ node_modules/
 *.lock
 
 # In-progress trials (not yet ready for publication)
-/trial43/
+# (All trials complete as of T44 convergence)
 
 # Methodology files — proprietary, gatekept from public
 **/METHODOLOGY.md
 **/REVISED_METHODOLOGY.md
+**/REVISED_METHODOLOGY_NOTES.md
 **/METHODOLOGY_NOTES.md
 METHODOLOGY_ADDENDUM_*.md
 TRIAL_PROTOCOL.md
+MASTER_METHODOLOGY.md
 .claude/
 **/CLAUDE.md
 
@@ -18,7 +20,11 @@ TRIAL_PROTOCOL.md
 **/SCORE_REPORT.md
 **/RED_TEAM_REPORT.md
 **/SCORE_RECONCILIATION.md
+**/INDEPENDENT_SCORE.md
 **/C5_AUDIT.md
+
+# Scientific conclusion — contains per-dimension scores, FM definitions, convergence criteria
+SCIENTIFIC_CONCLUSION.md
 
 # Verification logic — private
 verify-layer.sh

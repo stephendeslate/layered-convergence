@@ -1,0 +1,6 @@
+// TRACED: EM-CORR-001
+import { v4 as uuidv4 } from 'uuid';
+
+export function createCorrelationId(): string {
+  return uuidv4();
+}

@@ -75,18 +75,18 @@
     "layerNum": 8,
     "name": "Monitoring",
     "domain": "Monitoring",
-    "status": "in_progress",
-    "failureModesResolved": 0,
-    "trials": {"completed": [], "minTrials": 3, "maxTrials": 4},
-    "description": "Pino structured logging, /health endpoints, Sentry, correlation IDs"
+    "status": "complete",
+    "failureModesResolved": 5,
+    "trials": {"completed": [40, 41, 42], "minTrials": 3, "maxTrials": 4},
+    "description": "Pino structured logging, /health + /health/ready, correlation IDs, GlobalExceptionFilter, metrics. 5 FMs (#94-98). Converged T42 (avg 113.3/120)."
   },
   {
     "layerNum": 9,
     "name": "Cross-Layer Integration",
     "domain": "Integration",
-    "status": "in_progress",
-    "failureModesResolved": 0,
-    "trials": {"completed": [], "minTrials": 2, "maxTrials": 3},
-    "description": "Final integration: all layers active simultaneously, cumulative verification, independent audit"
+    "status": "complete",
+    "failureModesResolved": 4,
+    "trials": {"completed": [43, 44], "minTrials": 2, "maxTrials": 3},
+    "description": "Full 10-layer integration: APP_GUARD/FILTER/INTERCEPTOR chain, shared package >8 exports, validateEnvVars, error-path verification. 4 FMs (#99-102). Converged T44 (avg 113.7/120)."
   }
 ]
