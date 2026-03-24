@@ -19,7 +19,7 @@ export class TenantContextInterceptor implements NestInterceptor {
     const userId = request.user?.id;
 
     if (userId) {
-      // Parameterized $executeRaw — never use $executeRawUnsafe (SDD v5.0+)
+      // Parameterized $executeRaw — never use $executeRawUnsafe (CED v5.0+)
       await this.prisma.$executeRaw`SELECT set_config('app.current_user_id', ${userId}::text, true)`;
     }
 

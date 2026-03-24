@@ -46,7 +46,7 @@ export class RouteService {
   /**
    * Optimize a route using a nearest-neighbor heuristic.
    * In production, this would call OpenRouteService Optimization API (Vroom engine).
-   * For SDD trials, we implement a simple nearest-neighbor algorithm.
+   * For CED trials, we implement a simple nearest-neighbor algorithm.
    */
   async optimize(technicianId: string, date: string) {
     // findFirst justified: querying by composite (technicianId, date) which is not a

@@ -10,7 +10,7 @@ export class StripeAccountService {
   /**
    * Initiate Stripe Connect Express onboarding for a provider.
    * In production, this would call Stripe.accounts.create() and return an onboarding link.
-   * For SDD trials, we simulate the account creation.
+   * For CED trials, we simulate the account creation.
    */
   async initiateOnboarding(userId: string) {
     const existingAccount = await this.prisma.stripeConnectedAccount.findUnique({

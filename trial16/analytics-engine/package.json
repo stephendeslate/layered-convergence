@@ -1,7 +1,7 @@
 {
   "name": "analytics-engine",
   "version": "1.0.0",
-  "description": "Multi-tenant analytics platform - Trial 16 SDD Layered Convergence",
+  "description": "Multi-tenant analytics platform - Trial 16 CED Layered Convergence",
   "private": true,
   "scripts": {
     "build": "nest build",

@@ -2,7 +2,7 @@
 
 ## Overview
 Analytics Engine implements structured logging, correlation IDs, health checks,
-and operational metrics. This is Layer 8 of the SDD methodology.
+and operational metrics. This is Layer 8 of the CED methodology.
 See [performance.md](./performance.md) for response time interceptor details.
 
 ## Structured Logging

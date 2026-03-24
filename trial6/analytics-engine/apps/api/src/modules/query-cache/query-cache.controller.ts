@@ -4,7 +4,7 @@ import { InvalidateCacheDto } from './dto/invalidate-cache.dto';
 
 /**
  * Admin endpoint for monitoring and managing the query cache.
- * Addresses SDD v6.0 Convention 5.18 — background service observability.
+ * Addresses CED v6.0 Convention 5.18 — background service observability.
  */
 @Controller('admin/cache')
 export class QueryCacheController {

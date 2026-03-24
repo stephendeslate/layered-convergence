@@ -20,7 +20,7 @@ export class TenantContextInterceptor implements NestInterceptor {
       request.headers['x-company-id'] ?? request.user?.companyId;
 
     if (companyId) {
-      // Parameterized $executeRaw — never use $executeRawUnsafe (SDD v5.0+)
+      // Parameterized $executeRaw — never use $executeRawUnsafe (CED v5.0+)
       await this.prisma.$executeRaw`SELECT set_config('app.current_tenant_id', ${companyId}::text, true)`;
     }
 

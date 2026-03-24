@@ -15,7 +15,7 @@ export class NotificationService {
   /**
    * Send a notification to a user.
    * In production, this would integrate with email, push, or in-app notification services.
-   * For SDD trials, we log the notification.
+   * For CED trials, we log the notification.
    */
   async send(payload: NotificationPayload): Promise<void> {
     this.logger.log(`Notification sent to ${payload.userId}: [${payload.type}] ${payload.title}`);

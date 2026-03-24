@@ -1,7 +1,7 @@
 # Trial 9 — Phase C6a: Final Scoring Report
 
 **Date:** 2026-03-20
-**Methodology:** SDD v9.0
+**Methodology:** CED v9.0
 **Projects:** Analytics Engine, Escrow Marketplace, Field Service Dispatch
 
 ---

@@ -5,7 +5,7 @@
     "domain": "Backend",
     "status": "complete",
     "failureModesResolved": 34,
-    "trials": {"completed": [1,2,3,4,5,6,7,8,9,10], "minTrials": 10, "maxTrials": 10},
+    "trials": {"completed": [1,2,3,4,5,6,7,8,9,10]},
     "description": "v1.0-v11.0, 34 failure modes, converged"
   },
   {
@@ -14,7 +14,7 @@
     "domain": "Testing",
     "status": "complete",
     "failureModesResolved": 4,
-    "trials": {"completed": [11,12,13,14], "minTrials": 3, "maxTrials": 5},
+    "trials": {"completed": [11,12,13,14]},
     "description": "Real DB + Redis E2E integration testing, 4 failure modes resolved, converged at Trial 14"
   },
   {
@@ -23,7 +23,7 @@
     "domain": "UI",
     "status": "complete",
     "failureModesResolved": 24,
-    "trials": {"completed": [15, 16, 17, 18, 19, 20], "minTrials": 5, "maxTrials": 8},
+    "trials": {"completed": [15, 16, 17, 18, 19, 20]},
     "description": "Next.js 15 + shadcn/ui + Tailwind CSS 4, 24 FMs resolved, converged at Trial 20"
   },
   {
@@ -32,7 +32,7 @@
     "domain": "Specs",
     "status": "complete",
     "failureModesResolved": 9,
-    "trials": {"completed": [21, 22, 23, 24, 25, 26, 27], "minTrials": 3, "maxTrials": 7},
+    "trials": {"completed": [21, 22, 23, 24, 25, 26, 27]},
     "description": "Structured specification and traceability, converged at Trial 27"
   },
   {
@@ -41,7 +41,7 @@
     "domain": "Infra",
     "status": "complete",
     "failureModesResolved": 3,
-    "trials": {"completed": [28, 29, 30, 31], "minTrials": 3, "maxTrials": 5},
+    "trials": {"completed": [28, 29, 30, 31]},
     "description": "Docker, CI/CD, Prisma migrations, seed scripts, env verification"
   },
   {
@@ -50,7 +50,7 @@
     "domain": "Monorepo",
     "status": "complete",
     "failureModesResolved": 1,
-    "trials": {"completed": [32, 33, 34, 35], "minTrials": 3, "maxTrials": 4},
+    "trials": {"completed": [32, 33, 34, 35]},
     "description": "Turborepo 2 + pnpm workspaces, packages/shared, cross-package types. Converged T35 with caveats."
   },
   {
@@ -59,7 +59,7 @@
     "domain": "Security",
     "status": "complete",
     "failureModesResolved": 15,
-    "trials": {"completed": [36, 37], "minTrials": 3, "maxTrials": 5},
+    "trials": {"completed": [36, 37]},
     "description": "OWASP Top 10, rate limiting, CORS/CSP, Helmet.js, dependency audit. 15 FMs resolved (#76-90). Converged T37 (avg 96.3/110)."
   },
   {
@@ -68,7 +68,7 @@
     "domain": "Performance",
     "status": "complete",
     "failureModesResolved": 3,
-    "trials": {"completed": [38, 39], "minTrials": 3, "maxTrials": 4},
+    "trials": {"completed": [38, 39]},
     "description": "Response time interceptor, pagination clamping, Prisma optimization, caching headers, N+1 prevention. 3 FMs (#91-93). Converged T39 (avg 104.7/120)."
   },
   {
@@ -77,7 +77,7 @@
     "domain": "Monitoring",
     "status": "complete",
     "failureModesResolved": 5,
-    "trials": {"completed": [40, 41, 42], "minTrials": 3, "maxTrials": 4},
+    "trials": {"completed": [40, 41, 42]},
     "description": "Pino structured logging, /health + /health/ready, correlation IDs, GlobalExceptionFilter, metrics. 5 FMs (#94-98). Converged T42 (avg 113.3/120)."
   },
   {
@@ -86,7 +86,7 @@
     "domain": "Integration",
     "status": "complete",
     "failureModesResolved": 4,
-    "trials": {"completed": [43, 44], "minTrials": 2, "maxTrials": 3},
+    "trials": {"completed": [43, 44]},
     "description": "Full 10-layer integration: APP_GUARD/FILTER/INTERCEPTOR chain, shared package >8 exports, validateEnvVars, error-path verification. 4 FMs (#99-102). Converged T44 (avg 113.7/120)."
   }
 ]

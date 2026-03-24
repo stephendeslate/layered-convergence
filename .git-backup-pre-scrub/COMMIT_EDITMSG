@@ -1,0 +1,6 @@
+Publish Trial 32 — Layer 5 (Monorepo) begins
+
+First L5 trial: 1 new FM (#75, cross-package import minimum).
+EM TESTING_STRATEGY under 50 lines, enums lack @@map regression.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>

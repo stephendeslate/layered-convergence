@@ -4,7 +4,7 @@ import { TriggerAggregationDto } from './dto/trigger-aggregation.dto';
 
 /**
  * Admin endpoint for triggering and monitoring the aggregation background service.
- * Addresses SDD v6.0 Convention 5.18 — background service observability.
+ * Addresses CED v6.0 Convention 5.18 — background service observability.
  */
 @Controller('admin/aggregation')
 export class AggregationController {

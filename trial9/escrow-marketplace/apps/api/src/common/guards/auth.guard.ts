@@ -9,7 +9,7 @@ import { Request } from 'express';
 /**
  * Simple auth guard that verifies the x-user-id header is present.
  * In production, this would validate a JWT or session token.
- * For SDD trials, we use header-based identity to focus on business logic.
+ * For CED trials, we use header-based identity to focus on business logic.
  */
 @Injectable()
 export class AuthGuard implements CanActivate {

@@ -1,6 +1,6 @@
-# Layered Convergence — SDD Trials 11-44
+# Layered Convergence — CED Trials 11-44
 
-Extends the [SDD Methodology](https://github.com/stephendeslate/sdd-trials) from backend-only depth (v11.0, 34 failure modes, converged) to full-stack breadth. Each layer adds one domain, runs trials until convergence, then the next layer begins. All layers inherit previous conventions and failure modes.
+Extends the [CED Methodology](https://github.com/stephendeslate/ced-trials) from backend-only depth (v11.0, 34 failure modes, converged) to full-stack breadth. Each layer adds one domain, runs trials until convergence, then the next layer begins. All layers inherit previous conventions and failure modes.
 
 **Result:** All 10 layers converged across 44 trials (132 enterprise application builds). 102 failure modes catalogued and resolved.
 
@@ -21,7 +21,7 @@ Extends the [SDD Methodology](https://github.com/stephendeslate/sdd-trials) from
 
 ## The Problem
 
-> **No version of SDD achieves both breadth and depth.**
+> **No version of CED achieves both breadth and depth.**
 
 - **v1.0 (Trial 1)** = max breadth (full-stack monorepo), audited quality 6.5-8.0
 - **v11.0 (Trial 10)** = max depth (34 failure modes, 100% resolved), backend-only
@@ -99,7 +99,7 @@ layered-convergence/
 
 ## Predecessor
 
-Built on 10 trials of SDD documented in [sdd-trials](https://github.com/stephendeslate/sdd-trials). See the [SDD Methodology Analysis Report](https://github.com/stephendeslate/sdd-trials/blob/main/SDD_METHODOLOGY_ANALYSIS_REPORT.md) for the complete cross-trial analysis and the layered convergence design.
+Built on 10 trials of CED documented in [ced-trials](https://github.com/stephendeslate/ced-trials). See the [CED Methodology Analysis Report](https://github.com/stephendeslate/ced-trials/blob/main/CED_METHODOLOGY_ANALYSIS_REPORT.md) for the complete cross-trial analysis and the layered convergence design.
 
 ## License
 

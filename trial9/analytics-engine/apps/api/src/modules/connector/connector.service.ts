@@ -114,7 +114,7 @@ export class ConnectorService {
     }
 
     // In production, this would fetch from the configured URL.
-    // For SDD trials, we simulate the API response.
+    // For CED trials, we simulate the API response.
     this.logger.log(`API sync for source ${dataSource.id}: would fetch ${config.url}`);
 
     // Simulated: generate sample data points
@@ -131,7 +131,7 @@ export class ConnectorService {
 
   private async syncCsv(dataSource: { id: string; tenantId: string; connectionConfig: unknown; fieldMapping: unknown }, syncRunId: string): Promise<number> {
     // CSV sync processes uploaded file data.
-    // For SDD trials, we simulate CSV parsing.
+    // For CED trials, we simulate CSV parsing.
     this.logger.log(`CSV sync for source ${dataSource.id}`);
 
     const now = new Date();
@@ -147,7 +147,7 @@ export class ConnectorService {
 
   private async syncPostgresql(dataSource: { id: string; tenantId: string; connectionConfig: unknown; fieldMapping: unknown }, syncRunId: string): Promise<number> {
     // PostgreSQL sync executes a read-only query against an external database.
-    // For SDD trials, we simulate the query result.
+    // For CED trials, we simulate the query result.
     this.logger.log(`PostgreSQL sync for source ${dataSource.id}`);
 
     const now = new Date();

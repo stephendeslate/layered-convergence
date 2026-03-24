@@ -1,6 +1,6 @@
 /**
  * WebSocket Gateway companion test file.
- * Required by SDD v6.0 Convention 5.20 — WebSocket Gateway Test Pattern.
+ * Required by CED v6.0 Convention 5.20 — WebSocket Gateway Test Pattern.
  *
  * Tests the GpsGateway WebSocket event handling:
  * 1. Position update emission and broadcast

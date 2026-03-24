@@ -1,6 +1,6 @@
 # Trial 8 — Scoring Report
 
-**Methodology Version:** SDD v8.0
+**Methodology Version:** CED v8.0
 **Date:** 2026-03-20
 **Projects:** Analytics Engine, Escrow Marketplace, Field Service Dispatch
 
@@ -112,5 +112,5 @@ All 28 failure modes from Trials 1-7 were checked:
 | Finding | Projects Affected | Severity | Root Cause |
 |---------|-------------------|----------|------------|
 | Empty `common/pipes` scaffold directory | 3/3 | Very Low | Scaffold created `common/pipes/` directory but no custom pipes were needed. Detected and removed during C5. Convention 5.24 effective but scope should extend beyond `modules/` to include `common/` subdirectories. |
-| Test coverage limited to critical paths | 3/3 | Low | Only state machines, error filters, and gateways have unit tests. Service CRUD methods and controllers lack test coverage. Acceptable for SDD methodology focus but worth noting. |
+| Test coverage limited to critical paths | 3/3 | Low | Only state machines, error filters, and gateways have unit tests. Service CRUD methods and controllers lack test coverage. Acceptable for CED methodology focus but worth noting. |
 | No E2E test infrastructure | 3/3 | Low | No integration/E2E tests. Unit tests mock Prisma entirely. Database-level RLS policies not tested against real PostgreSQL. |

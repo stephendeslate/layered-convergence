@@ -1,7 +1,7 @@
 {
   "name": "analytics-engine",
   "version": "0.1.0",
-  "description": "Embeddable Analytics Dashboard Engine — Trial 35 SDD Layered Convergence",
+  "description": "Embeddable Analytics Dashboard Engine — Trial 35 CED Layered Convergence",
   "private": true,
   "scripts": {
     "build": "nest build",
