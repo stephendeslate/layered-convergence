@@ -35,3 +35,4 @@ verify-layer.sh
 **/.env.test
 **/.env.production
 !**/.env.example
+.git-backup-pre-scrub/
