@@ -118,11 +118,4 @@ New shared utilities added for this trial:
 
 ## T36 Fixes Applied
 
-- FM#76: Auth DTO uses @IsIn(ALLOWED_REGISTRATION_ROLES) not @IsEnum(UserRole)
-- FM#77: jwt.strategy.ts uses process.env.JWT_SECRET with no fallback
-- FM#78: Integration tests use supertest(app.getHttpServer())
-- FM#79: No raw select elements — uses Table component instead
-- FM#80: All TRACED comments in .ts/.tsx files only
-- FM#81: All spec files >= 55 lines (auth.md >= 60)
-- FM#82: CI has all 5 steps with pnpm turbo run
-- FM#83: All controllers use DTO classes with @MaxLength on string fields
+8 failure modes addressed (FM#76–FM#83).
