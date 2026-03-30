@@ -1,8 +1,5 @@
 node_modules/
-*.lock
-
-# In-progress trials (not yet ready for publication)
-# (All trials complete as of T44 convergence)
+**/*.lock
 
 # Methodology files — proprietary, gatekept from public
 **/METHODOLOGY.md
@@ -22,6 +19,7 @@ MASTER_METHODOLOGY.md
 **/SCORE_RECONCILIATION.md
 **/INDEPENDENT_SCORE.md
 **/C5_AUDIT.md
+**/BUILD_PLAN.md
 
 # Scientific conclusion — contains per-dimension scores, FM definitions, convergence criteria
 SCIENTIFIC_CONCLUSION.md
@@ -35,4 +33,18 @@ verify-layer.sh
 **/.env.test
 **/.env.production
 !**/.env.example
+
+# Build artifacts
+**/.turbo/
+**/dist/
+**/.next/
+**/coverage/
+**/*.tsbuildinfo
+**/.nyc_output/
+
+# Archive & backup
+_archive/
 .git-backup-pre-scrub/
+
+# OS
+.DS_Store
